@@ -1,5 +1,4 @@
 #include "qcommon/base.h"
-#include "qcommon/qcommon.h"
 
 static void * StbMalloc( size_t size ) {
 	return ALLOC_SIZE( sys_allocator, size, 16 );
