@@ -58,11 +58,17 @@ void main() {
 out vec4 f_Albedo;
 
 uniform sampler2D u_BaseTexture;
-uniform sampler2D u_DecalTexture;
+uniform sampler2D u_DecalAtlas;
 
 #if APPLY_SOFT_PARTICLE
 #include "include/softparticle.glsl"
 uniform sampler2D u_DepthTexture;
+#endif
+
+#if APPLY_DECALS
+layout( std140 ) uniform u_Decal {
+	vec4 u_DecalXYWH;
+};
 #endif
 
 float proj_frac( vec3 p, vec3 o, vec3 d ) {
@@ -118,8 +124,10 @@ void main() {
 		vec3 bottom_left = decal_origin - ( basis_u + basis_v ) * 0.5;
 
 		vec2 uv = vec2( proj_frac( v_Position, bottom_left, basis_u ), proj_frac( v_Position, bottom_left, basis_v ) );
+		uv = u_DecalXYWH.xy + u_DecalXYWH.zw * uv;
 
-		diffuse.rgb += texture( u_DecalTexture, uv ).rgb * decal_color.rgb * decal_color.a * max( 0.0, dot( v_Normal, decal_normal ) );
+		vec4 sample = texture( u_DecalAtlas, uv );
+		diffuse.rgb += sample.rgb * sample.a * decal_color.rgb * decal_color.a * max( 0.0, dot( v_Normal, decal_normal ) );
 	}
 #endif
 

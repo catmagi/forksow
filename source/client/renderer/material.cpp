@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client/renderer/renderer.h"
 
 #include "stb/stb_image.h"
+#include "stb/stb_rect_pack.h"
 
 struct MaterialSpecKey {
 	const char * keyword;
@@ -39,6 +40,9 @@ struct MaterialSpecKey {
 
 constexpr u32 MAX_TEXTURES = 4096;
 constexpr u32 MAX_MATERIALS = 4096;
+
+constexpr u32 MAX_DECALS = 128;
+constexpr int DECAL_ATLAS_SIZE = 2048;
 
 static Texture textures[ MAX_TEXTURES ];
 static u32 num_textures;
@@ -60,6 +64,11 @@ struct MaterialLocation {
 
 static MaterialLocation material_locations[ MAX_MATERIALS ];
 static Hashtable< MAX_MATERIALS * 2 > material_locations_hashtable;
+
+static Vec4 decals[ MAX_DECALS ];
+static u32 num_decals;
+static Hashtable< MAX_DECALS * 2 > decals_hashtable;
+static Texture decals_atlas;
 
 static u64 HashMaterialName( const char * name ) {
 	// skip leading /
@@ -138,6 +147,10 @@ static void Shader_Discard( Material * material, const char * name, const char *
 	material->discard = true;
 }
 
+static void Shader_Decal( Material * material, const char * name, const char ** ptr ) {
+	material->decal = true;
+}
+
 static void ParseMaterial( Material * material, const char * name, const char ** ptr );
 static void Shader_Template( Material * material, const char * material_name, const char ** ptr ) {
 	constexpr int MAX_ARGS = 9;
@@ -212,6 +225,7 @@ static const MaterialSpecKey shaderkeys[] = {
 	{ "cull", Shader_Cull },
 	{ "template", Shader_Template },
 	{ "polygonoffset", Shader_Discard },
+	{ "decal", Shader_Decal },
 
 	{ NULL, NULL }
 };
@@ -434,6 +448,7 @@ static void AddTexture( u64 hash, const TextureConfig & config ) {
 	}
 	else {
 		DeleteTexture( textures[ idx ] );
+		stbi_image_free( const_cast< void * >( textures[ idx ].data ) );
 	}
 
 	textures[ idx ] = NewTexture( config );
@@ -467,24 +482,6 @@ static void LoadBuiltinTextures() {
 	}
 
 	{
-		constexpr RGB8 pixels[] = {
-			RGB8( 255, 0, 255 ),
-			RGB8( 0, 0, 0 ),
-			RGB8( 255, 255, 255 ),
-			RGB8( 255, 0, 255 ),
-		};
-
-		TextureConfig config;
-		config.width = 2;
-		config.height = 2;
-		config.data = pixels;
-		config.filter = TextureFilter_Point;
-		config.format = TextureFormat_RGB_U8;
-
-		missing_texture = NewTexture( config );
-	}
-
-	{
 		u8 data[ 16 * 16 ];
 		Span2D< u8 > image( data, 16, 16 );
 
@@ -503,6 +500,24 @@ static void LoadBuiltinTextures() {
 		config.format = TextureFormat_A_U8;
 
 		AddTexture( Hash64( "$particle" ), config );
+	}
+
+	{
+		constexpr RGB8 pixels[] = {
+			RGB8( 255, 0, 255 ),
+			RGB8( 0, 0, 0 ),
+			RGB8( 255, 255, 255 ),
+			RGB8( 255, 0, 255 ),
+		};
+
+		TextureConfig config;
+		config.width = 2;
+		config.height = 2;
+		config.data = pixels;
+		config.filter = TextureFilter_Point;
+		config.format = TextureFormat_RGB_U8;
+
+		missing_texture = NewTexture( config );
 	}
 }
 
@@ -530,8 +545,6 @@ static void LoadTexture( const char * path, u8 * pixels, int w, int h, int chann
 
 	Span< const char > ext = FileExtension( path );
 	AddTexture( Hash64( path, strlen( path ) - ext.n ), config );
-
-	stbi_image_free( pixels );
 }
 
 static void LoadMaterialFile( const char * path ) {
@@ -554,6 +567,7 @@ static void LoadMaterialFile( const char * path ) {
 		}
 
 		materials[ idx ] = Material();
+		materials[ idx ].name = hash;
 		materials[ idx ].texture = &missing_texture;
 		ParseMaterial( &materials[ idx ], material_name, &ptr );
 
@@ -584,6 +598,78 @@ static void DecodeTextureWorker( TempAllocator * temp, void * data ) {
 	ZoneText( job->in.path, strlen( job->in.path ) );
 
 	job->out.pixels = stbi_load_from_memory( job->in.data.ptr, job->in.data.num_bytes(), &job->out.width, &job->out.height, &job->out.channels, 0 );
+}
+
+static void CopyImage( Span2D< RGBA8 > dst, int x, int y, const Texture * texture ) {
+	Span2D< const RGBA8 > src( ( const RGBA8 * ) texture->data, texture->width, texture->height );
+	for( u32 row = 0; row < texture->height; row++ ) {
+		memcpy( &dst( x, y + row ), &src( 0, row ), sizeof( RGBA8 ) * texture->width );
+	}
+}
+
+static void PackDecalAtlas() {
+	ZoneScoped;
+
+	DeleteTexture( decals_atlas );
+	decals_hashtable.clear();
+
+	stbrp_node nodes[ MAX_TEXTURES ];
+	stbrp_context packer;
+	stbrp_init_target( &packer, DECAL_ATLAS_SIZE, DECAL_ATLAS_SIZE, nodes, ARRAY_COUNT( nodes ) );
+	stbrp_setup_allow_out_of_mem( &packer, 1 );
+
+	stbrp_rect rects[ MAX_TEXTURES ];
+
+	for( u32 i = 0; i < num_materials; i++ ) {
+		if( !materials[ i ].decal )
+			continue;
+
+		if( materials[ i ].texture->format != TextureFormat_RGBA_U8_sRGB ) {
+			Com_Printf( "Decals must be RGBA" );
+			continue;
+		}
+
+		stbrp_rect * rect = &rects[ num_decals ];
+		num_decals++;
+
+		rect->id = i;
+		rect->w = materials[ i ].texture->width;
+		rect->h = materials[ i ].texture->height;
+	}
+
+	int ok = stbrp_pack_rects( &packer, rects, num_decals );
+	if( ok == 0 ) {
+		Com_Error( ERR_DROP, "decal packing" );
+		// ...
+	}
+
+	static RGBA8 pixels[ DECAL_ATLAS_SIZE * DECAL_ATLAS_SIZE ];
+	Span2D< RGBA8 > image( pixels, DECAL_ATLAS_SIZE, DECAL_ATLAS_SIZE );
+	for( u32 i = 0; i < num_decals; i++ ) {
+		const Material * decal = &materials[ rects[ i ].id ];
+		CopyImage( image, rects[ i ].x, rects[ i ].y, decal->texture );
+
+		decals_hashtable.add( decal->name, i );
+		decals[ i ].x = rects[ i ].x / float( DECAL_ATLAS_SIZE );
+		decals[ i ].y = rects[ i ].y / float( DECAL_ATLAS_SIZE );
+		decals[ i ].z = decal->texture->width / float( DECAL_ATLAS_SIZE );
+		decals[ i ].w = decal->texture->height / float( DECAL_ATLAS_SIZE );
+	}
+
+	// upload atlas
+	{
+		ZoneScopedN( "Upload atlas" );
+
+		DeleteTexture( decals_atlas );
+
+		TextureConfig config;
+		config.width = DECAL_ATLAS_SIZE;
+		config.height = DECAL_ATLAS_SIZE;
+		config.format = TextureFormat_RGBA_U8_sRGB;
+		config.data = pixels;
+
+		decals_atlas = NewTexture( config );
+	}
 }
 
 void InitMaterials() {
@@ -638,10 +724,14 @@ void InitMaterials() {
 
 	missing_material = Material();
 	missing_material.texture = &missing_texture;
+
+	PackDecalAtlas();
 }
 
 void HotloadMaterials() {
 	ZoneScoped;
+
+	bool changes = false;
 
 	for( const char * path : ModifiedAssetPaths() ) {
 		Span< const char > ext = FileExtension( path );
@@ -656,22 +746,31 @@ void HotloadMaterials() {
 			}
 
 			LoadTexture( path, pixels, w, h, channels );
+
+			changes = true;
 		}
 	}
 
 	for( const char * path : ModifiedAssetPaths() ) {
 		if( FileExtension( path ) == ".shader" && BaseName( path ) != "editor.shader" ) {
 			LoadMaterialFile( path );
+			changes = true;
 		}
+	}
+
+	if( changes ) {
+		PackDecalAtlas();
 	}
 }
 
 void ShutdownMaterials() {
 	for( u32 i = 0; i < num_textures; i++ ) {
 		DeleteTexture( textures[ i ] );
+		stbi_image_free( const_cast< void * >( textures[ i ].data ) );
 	}
 
 	DeleteTexture( missing_texture );
+	DeleteTexture( decals_atlas );
 }
 
 bool TryFindMaterial( StringHash name, const Material ** material ) {
@@ -691,6 +790,22 @@ const Material * FindMaterial( StringHash name, const Material * def ) {
 
 const Material * FindMaterial( const char * name, const Material * def ) {
 	return FindMaterial( StringHash( HashMaterialName( name ) ), def );
+}
+
+bool TryFindDecal( StringHash name, Vec4 * decal ) {
+	u64 idx;
+	if( !decals_hashtable.get( name.hash, &idx ) )
+		return false;
+	*decal = decals[ idx ];
+	return true;
+}
+
+const Texture * DecalAtlasTexture() {
+	return &decals_atlas;
+}
+
+Vec2 HalfPixelSize( const Material * material ) {
+	return 0.5f / Vec2( material->texture->width, material->texture->height );
 }
 
 bool HasAlpha( TextureFormat format ) {

@@ -1660,7 +1660,7 @@ static void CG_DrawWeaponIcons( int x, int y, int offx, int offy, int iw, int ih
 			Draw2DBox( curx + border + padding, cury + border + padding, iconw, iconh, icon, Vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 		}
 
-		Vec2 half_pixel = 0.5f / Vec2( icon->texture->width, icon->texture->height );
+		Vec2 half_pixel = HalfPixelSize( icon );
 
 		Draw2DBox( curx, cury + ih * ( 1.0f - ammo_frac ), iw, ih * ammo_frac, cgs.white_material, color );
 		Draw2DBox( curx + border, cury + ih * ( 1.0f - ammo_frac ) + border, innerw, ih * ammo_frac - border * 2, cgs.white_material, color_bg );

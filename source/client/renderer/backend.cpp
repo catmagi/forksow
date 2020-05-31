@@ -743,6 +743,7 @@ static Texture NewTextureSamples( TextureConfig config, int msaa_samples ) {
 	texture.height = config.height;
 	texture.msaa = msaa_samples > 1;
 	texture.format = config.format;
+	texture.data = config.data;
 
 	glGenTextures( 1, &texture.texture );
 	// TODO: should probably update the gl state since we bind a new texture
@@ -809,6 +810,8 @@ void UpdateTexture( Texture texture, int x, int y, int w, int h, const void * da
 }
 
 void DeleteTexture( Texture texture ) {
+	if( texture.texture == 0 )
+		return;
 	glDeleteTextures( 1, &texture.texture );
 }
 
@@ -889,13 +892,9 @@ void DeleteFramebuffer( Framebuffer fb ) {
 		return;
 
 	glDeleteFramebuffers( 1, &fb.fbo );
-
-	if( fb.albedo_texture.texture != 0 )
-		DeleteTexture( fb.albedo_texture );
-	if( fb.normal_texture.texture != 0 )
-		DeleteTexture( fb.normal_texture );
-	if( fb.depth_texture.texture != 0 )
-		DeleteTexture( fb.depth_texture );
+	DeleteTexture( fb.albedo_texture );
+	DeleteTexture( fb.normal_texture );
+	DeleteTexture( fb.depth_texture );
 }
 
 #define MAX_GLSL_UNIFORM_JOINTS 100
@@ -1252,7 +1251,7 @@ void DrawInstancedParticles( const Mesh & mesh, VertexBuffer vb, const Material 
 	pipeline.blend_func = blend_func;
 	pipeline.write_depth = false;
 	pipeline.set_uniform( "u_View", frame_static.view_uniforms );
-	pipeline.set_uniform( "u_GradientMaterial", UploadUniformBlock( 0.5f / gradient->texture->width ) );
+	pipeline.set_uniform( "u_GradientMaterial", UploadUniformBlock( HalfPixelSize( gradient ).x ) );
 	pipeline.set_texture( "u_BaseTexture", material->texture );
 	pipeline.set_texture( "u_GradientTexture", gradient->texture );
 

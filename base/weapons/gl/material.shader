@@ -1,3 +1,12 @@
+weapons/gl/icon
+{
+	{
+		map weapons/gl/icon
+	}
+
+	decal
+}
+
 models/weapons/gl
 {
 	{
