@@ -738,12 +738,11 @@ void DeleteIndexBuffer( IndexBuffer ib ) {
 }
 
 static Texture NewTextureSamples( TextureConfig config, int msaa_samples ) {
-	Texture texture;
+	Texture texture = { };
 	texture.width = config.width;
 	texture.height = config.height;
 	texture.msaa = msaa_samples > 1;
 	texture.format = config.format;
-	texture.data = config.data;
 
 	glGenTextures( 1, &texture.texture );
 	// TODO: should probably update the gl state since we bind a new texture
