@@ -72,10 +72,8 @@ struct AllocationTracker {
 		if( ptr == NULL )
 			return;
 		Lock( mutex );
-		if( allocations.erase( ptr ) == 0 ) {
-			__debugbreak();
+		if( allocations.erase( ptr ) == 0 )
 			Sys_Error( "Stray free in '%s' (%s:%d)", func, file, line );
-		}
 		Unlock( mutex );
 	};
 };
