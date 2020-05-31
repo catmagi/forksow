@@ -17,7 +17,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+
 #include "qcommon/qcommon.h"
+#include "qcommon/cmodel.h"
 #include "qcommon/glob.h"
 #include "qcommon/csprng.h"
 #include "qcommon/threads.h"
@@ -525,6 +527,10 @@ void Qcommon_ShutdownCommands( void ) {
 */
 void Qcommon_Init( int argc, char **argv ) {
 	ZoneScoped;
+
+#if !PUBLIC_BUILD
+	EnableFPE();
+#endif
 
 	Sys_Init();
 

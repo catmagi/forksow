@@ -185,9 +185,6 @@ void Q_urlencode_unsafechars( const char *src, char *dst, size_t dst_size );
  */
 size_t Q_urldecode( const char *src, char *dst, size_t dst_size );
 
-float *tv( float x, float y, float z );
-char *vtos( float v[3] );
-
 #ifndef _MSC_VER
 char *va( const char *format, ... ) __attribute__( ( format( printf, 1, 2 ) ) );
 char *va_r( char *dst, size_t size, const char *format, ... ) __attribute__( ( format( printf, 3, 4 ) ) );
@@ -214,10 +211,7 @@ bool Info_Validate( const char *s );
 // per-level limits
 //
 #define MAX_CLIENTS                 256         // absolute limit
-#define MAX_EDICTS                  4096        // must change protocol to increase more
-#define MAX_MODELS                  1024        // these are sent over the net as shorts
-#define MAX_SOUNDS                  1024        // so they cannot be blindly increased
-#define MAX_IMAGES                  256
+#define MAX_EDICTS                  1024        // must change protocol to increase more
 
 //============================================
 // sound

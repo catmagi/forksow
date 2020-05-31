@@ -185,29 +185,18 @@ struct Span {
 	constexpr Span( T * ptr_, size_t n_ ) : ptr( ptr_ ), n( n_ ) { }
 
 	// allow implicit conversion to Span< const T >
-	operator Span< const T >() { return Span< const T >( ptr, n ); }
 	operator Span< const T >() const { return Span< const T >( ptr, n ); }
 
 	size_t num_bytes() const { return sizeof( T ) * n; }
 
-	T & operator[]( size_t i ) {
+	T & operator[]( size_t i ) const {
 		assert( i < n );
 		return ptr[ i ];
 	}
 
-	const T & operator[]( size_t i ) const {
-		assert( i < n );
-		return ptr[ i ];
-	}
-
-	Span< T > operator+( size_t i ) {
+	Span< T > operator+( size_t i ) const {
 		assert( i <= n );
 		return Span< T >( ptr + i, n - i );
-	}
-
-	Span< const T > operator+( size_t i ) const {
-		assert( i <= n );
-		return Span< const T >( ptr + i, n - i );
 	}
 
 	void operator++( int ) {
@@ -216,25 +205,17 @@ struct Span {
 		n--;
 	}
 
-	T * begin() { return ptr; }
-	T * end() { return ptr + n; }
-	const T * begin() const { return ptr; }
-	const T * end() const { return ptr + n; }
+	T * begin() const { return ptr; }
+	T * end() const { return ptr + n; }
 
-	Span< T > slice( size_t start, size_t one_past_end ) {
-		assert( start <= one_past_end );
-		assert( one_past_end <= n );
-		return Span< T >( ptr + start, one_past_end - start );
-	}
-
-	Span< const T > slice( size_t start, size_t one_past_end ) const {
+	Span< T > slice( size_t start, size_t one_past_end ) const {
 		assert( start <= one_past_end );
 		assert( one_past_end <= n );
 		return Span< const T >( ptr + start, one_past_end - start );
 	}
 
 	template< typename S >
-	Span< S > cast() {
+	Span< S > cast() const {
 		assert( num_bytes() % sizeof( S ) == 0 );
 		return Span< S >( ( S * ) ptr, num_bytes() / sizeof( S ) );
 	}
@@ -252,6 +233,17 @@ struct Vec2 {
 	constexpr Vec2( float x_, float y_ ) : x( x_ ), y( y_ ) { }
 
 	float * ptr() { return &x; }
+	const float * ptr() const { return &x; }
+
+	float & operator[]( size_t i ) {
+		assert( i < 2 );
+		return ptr()[ i ];
+	}
+
+	float operator[]( size_t i ) const {
+		assert( i < 2 );
+		return ptr()[ i ];
+	}
 };
 
 struct Vec3 {
@@ -265,6 +257,17 @@ struct Vec3 {
 	Vec2 xy() const { return Vec2( x, y ); }
 
 	float * ptr() { return &x; }
+	const float * ptr() const { return &x; }
+
+	float & operator[]( size_t i ) {
+		assert( i < 3 );
+		return ptr()[ i ];
+	}
+
+	float operator[]( size_t i ) const {
+		assert( i < 3 );
+		return ptr()[ i ];
+	}
 };
 
 struct Vec4 {
@@ -280,6 +283,17 @@ struct Vec4 {
 	Vec3 xyz() const { return Vec3( x, y, z ); }
 
 	float * ptr() { return &x; }
+	const float * ptr() const { return &x; }
+
+	float & operator[]( size_t i ) {
+		assert( i < 4 );
+		return ptr()[ i ];
+	}
+
+	float operator[]( size_t i ) const {
+		assert( i < 4 );
+		return ptr()[ i ];
+	}
 };
 
 struct Mat2 {
@@ -383,6 +397,7 @@ struct EulerDegrees3 {
 
 	EulerDegrees3() = default;
 	constexpr EulerDegrees3( float p, float y, float r ) : pitch( p ), yaw( y ), roll( r ) { }
+	constexpr EulerDegrees3( Vec3 v ) : pitch( v.x ), yaw( v.y ), roll( v.z ) { }
 };
 
 struct Quaternion {

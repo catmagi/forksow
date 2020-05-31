@@ -28,7 +28,7 @@ spawn_temp_t st;
 mempool_s *gamepool;
 
 int meansOfDeath;
-vec3_t knockbackOfDeath;
+Vec3 knockbackOfDeath;
 
 cvar_t *password;
 cvar_t *g_operator_password;
@@ -82,7 +82,7 @@ static int map_rotation_count = 0;
 /*
 * G_GS_Trace - Used only for gameshared linking
 */
-static void G_GS_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int ignore, int contentmask, int timeDelta ) {
+static void G_GS_Trace( trace_t *tr, Vec3 start, Vec3 mins, Vec3 maxs, Vec3 end, int ignore, int contentmask, int timeDelta ) {
 	edict_t *passent = NULL;
 	if( ignore >= 0 && ignore < MAX_EDICTS ) {
 		passent = &game.edicts[ignore];
@@ -131,8 +131,6 @@ void G_GamestatSetFlag( int flag, bool b ) {
 */
 void G_Init( unsigned int framemsec ) {
 	gamepool = _Mem_AllocPool( NULL, "Game", MEMPOOL_GAME, __FILE__, __LINE__ );
-
-	cvar_t *g_maxentities;
 
 	Com_Printf( "==== G_Init ====\n" );
 
@@ -212,8 +210,7 @@ void G_Init( unsigned int framemsec ) {
 	g_asGC_interval = Cvar_Get( "g_asGC_interval", "10", CVAR_ARCHIVE );
 
 	// initialize all entities for this game
-	g_maxentities = Cvar_Get( "sv_maxentities", "4096", CVAR_LATCH );
-	game.maxentities = g_maxentities->integer;
+	game.maxentities = MAX_EDICTS;
 	game.edicts = ( edict_t * )G_Malloc( game.maxentities * sizeof( game.edicts[0] ) );
 
 	// initialize all clients for this game

@@ -1,12 +1,6 @@
 #include "qcommon/base.h"
 #include "qcommon/qcommon.h"
-
-#if COMPIER_GCCORCLANG
-#include <sanitizer/asan_interface.h>
-#else
-#define ASAN_POISON_MEMORY_REGION( mem, size )
-#define ASAN_UNPOISON_MEMORY_REGION( mem, size )
-#endif
+#include "qcommon/asan.h"
 
 void * Allocator::allocate( size_t size, size_t alignment, const char * func, const char * file, int line ) {
 	void * p = try_allocate( size, alignment, func, file, line );
@@ -106,6 +100,7 @@ struct SystemAllocator final : public Allocator {
 
 		assert( alignment <= 16 );
 		void * ptr = malloc( size );
+		TracyAlloc( ptr, size );
 		tracker.track( ptr, func, file, line );
 		return ptr;
 	}
@@ -118,11 +113,14 @@ struct SystemAllocator final : public Allocator {
 			tracker.track( ptr, func, file, line );
 			return NULL;
 		}
+		TracyFree( ptr );
+		TracyAlloc( new_ptr, new_size );
 		tracker.track( new_ptr, func, file, line );
 		return new_ptr;
 	}
 
 	void deallocate( void * ptr, const char * func, const char * file, int line ) {
+		TracyFree( ptr );
 		free( ptr );
 		tracker.untrack( ptr, func, file, line );
 	}
@@ -141,6 +139,7 @@ TempAllocator::TempAllocator( const TempAllocator & other ) {
 TempAllocator::~TempAllocator() {
 	arena->cursor = old_cursor;
 	arena->num_temp_allocators--;
+	ASAN_POISON_MEMORY_REGION( arena->cursor, arena->top - arena->cursor );
 }
 
 void * TempAllocator::try_allocate( size_t size, size_t alignment, const char * func, const char * file, int line ) {

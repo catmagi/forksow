@@ -151,10 +151,12 @@ unsigned int CG_GetButtonBits() {
 	return buttons;
 }
 
-void CG_AddMovement( vec3_t movement ) {
-	movement[ 0 ] += ( button_right.down ? 1.0f : 0.0f ) - ( button_left.down ? 1.0f : 0.0f );
-	movement[ 1 ] += ( button_forward.down ? 1.0f : 0.0f ) - ( button_back.down ? 1.0f : 0.0f );
-	movement[ 2 ] += ( button_jump.down ? 1.0f : 0.0f ) - ( button_crouch.down ? 1.0f : 0.0f );
+Vec3 CG_GetMovement() {
+	return Vec3(
+		( button_right.down ? 1.0f : 0.0f ) - ( button_left.down ? 1.0f : 0.0f ),
+		( button_forward.down ? 1.0f : 0.0f ) - ( button_back.down ? 1.0f : 0.0f ),
+		( button_jump.down ? 1.0f : 0.0f ) - ( button_crouch.down ? 1.0f : 0.0f )
+	);
 }
 
 bool CG_GetBoundKeysString( const char *cmd, char *keys, size_t keysSize ) {
@@ -206,6 +208,7 @@ static cvar_t *m_accelStyle;
 static cvar_t *m_accelOffset;
 static cvar_t *m_accelPow;
 static cvar_t *m_sensCap;
+static cvar_t *m_invertY;
 
 static Vec2 mouse_movement;
 
@@ -215,7 +218,7 @@ float CG_GetSensitivityScale( float sens, float zoomSens ) {
 			return zoomSens / sens;
 		}
 
-		return CG_CalcViewFov() / cg_fov->value;
+		return CG_CalcViewFov() / FOV;
 	}
 
 	return 1.0f;
@@ -272,10 +275,15 @@ void CG_MouseMove( int frameTime, Vec2 m ) {
 	mouse_movement = m * sens;
 }
 
-void CG_AddViewAngles( vec3_t viewAngles ) {
+Vec3 CG_GetDeltaViewAngles() {
 	// m_pitch/m_yaw used to default to 0.022
-	viewAngles[ YAW ] -= 0.022f * horizontalSensScale->value * mouse_movement.x;
-	viewAngles[ PITCH ] += 0.022f * mouse_movement.y;
+	float x = horizontalSensScale->value;
+	float y = m_invertY->integer == 0 ? 1.0f : -1.0f;
+	return Vec3(
+		0.022f * y * mouse_movement.y,
+		-0.022f * x * mouse_movement.x,
+		0.0f
+	);
 }
 
 void CG_ClearInputState() {
@@ -291,7 +299,7 @@ void CG_ClearInputState() {
 
 	ClearButton( &button_attack );
 
-	mouse_movement = Vec2( 0 );
+	mouse_movement = Vec2( 0.0f );
 }
 
 void CG_InitInput() {
@@ -340,6 +348,7 @@ void CG_InitInput() {
 	m_accelOffset = Cvar_Get( "m_accelOffset", "0", CVAR_ARCHIVE );
 	m_accelPow = Cvar_Get( "m_accelPow", "2", CVAR_ARCHIVE );
 	m_sensCap = Cvar_Get( "m_sensCap", "0", CVAR_ARCHIVE );
+	m_invertY = Cvar_Get( "m_invertY", "0", CVAR_ARCHIVE );
 }
 
 void CG_ShutdownInput() {

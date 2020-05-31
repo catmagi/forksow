@@ -7,7 +7,6 @@
 
 // TODO: revamp key_dest garbage
 // TODO: finish cleaning up old stuff
-// TODO: check if mutex is really needed
 
 static constexpr size_t CONSOLE_LOG_SIZE = 1000 * 1000; // 1MB
 static constexpr size_t CONSOLE_INPUT_SIZE = 1024;
@@ -18,6 +17,7 @@ struct HistoryEntry {
 
 struct Console {
 	String< CONSOLE_LOG_SIZE > log;
+	Mutex * log_mutex = NULL;
 
 	char input[ CONSOLE_INPUT_SIZE ];
 
@@ -29,13 +29,14 @@ struct Console {
 	size_t history_head;
 	size_t history_count;
 	size_t history_idx;
-
-	Mutex * mutex = NULL;
 };
 
 static Console console;
 
 static void Con_ClearScrollback() {
+	Lock( console.log_mutex );
+	defer { Unlock( console.log_mutex ); };
+
 	console.log.clear();
 }
 
@@ -45,6 +46,8 @@ static void Con_ClearInput() {
 }
 
 void Con_Init() {
+	console.log_mutex = NewMutex();
+
 	Con_ClearScrollback();
 	Con_ClearInput();
 
@@ -55,15 +58,13 @@ void Con_Init() {
 	console.history_head = 0;
 	console.history_count = 0;
 
-	console.mutex = NewMutex();
-
 	Cmd_AddCommand( "toggleconsole", Con_ToggleConsole );
 	Cmd_AddCommand( "clear", Con_ClearScrollback );
 	// Cmd_AddCommand( "condump", Con_Dump );
 }
 
 void Con_Shutdown() {
-	DeleteMutex( console.mutex );
+	DeleteMutex( console.log_mutex );
 
 	Cmd_RemoveCommand( "toggleconsole" );
 	Cmd_RemoveCommand( "clear" );
@@ -99,15 +100,12 @@ void Con_Close() {
 	}
 }
 
-static void Con_PrintNoLock( const char * str ) {
-}
-
 void Con_Print( const char * str ) {
-	if( console.mutex == NULL )
+	if( console.log_mutex == NULL )
 		return;
 
-	Lock( console.mutex );
-	defer { Unlock( console.mutex ); };
+	Lock( console.log_mutex );
+	defer { Unlock( console.log_mutex ); };
 
 	// delete lines until we have enough space to add str
 	size_t len = strlen( str );
@@ -125,8 +123,9 @@ void Con_Print( const char * str ) {
 	console.log.remove( 0, trim );
 	console.log.append_raw( str, len );
 
-	if( console.at_bottom )
+	if( console.at_bottom ) {
 		console.scroll_to_bottom = true;
+	}
 }
 
 static void TabCompletion( char * buf, int buf_size );
@@ -205,11 +204,9 @@ static void Con_Execute() {
 		}
 	}
 
-	Con_ClearInput();
-
-	Unlock( console.mutex );
 	Com_Printf( "> %s\n", console.input );
-	Lock( console.mutex );
+
+	Con_ClearInput();
 }
 
 // break str into small chunks so we can print them individually because the
@@ -228,9 +225,6 @@ const char * NextChunkEnd( const char * str ) {
 }
 
 void Con_Draw() {
-	Lock( console.mutex );
-	defer { Unlock( console.mutex ); };
-
 	u32 bg = IM_COL32( 27, 27, 27, 224 );
 
 	ImGui::PushFont( cls.console_font );
@@ -250,6 +244,9 @@ void Con_Draw() {
 		ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 8, 4 ) );
 		ImGui::BeginChild( "consoletext", ImVec2( 0, frame_static.viewport_height * 0.4 - ImGui::GetFrameHeightWithSpacing() - 3 ), false, ImGuiWindowFlags_AlwaysUseWindowPadding );
 		{
+			Lock( console.log_mutex );
+			defer { Unlock( console.log_mutex ); };
+
 			ImGui::PushTextWrapPos( 0 );
 			const char * p = console.log.c_str();
 			while( p != NULL ) {
@@ -259,15 +256,16 @@ void Con_Draw() {
 			}
 			ImGui::PopTextWrapPos();
 
-			if( console.scroll_to_bottom )
+			if( console.scroll_to_bottom ) {
 				ImGui::SetScrollHereY( 1.0f );
-			console.scroll_to_bottom = false;
+				console.scroll_to_bottom = false;
+			}
 
 			if( ImGui::IsKeyPressed( K_PGUP ) || ImGui::IsKeyPressed( K_PGDN ) ) {
 				float scroll = ImGui::GetScrollY();
 				float page = ImGui::GetWindowSize().y - ImGui::GetTextLineHeight();
 				scroll += page * ( ImGui::IsKeyPressed( K_PGUP ) ? -1 : 1 );
-				scroll = bound( 0.0f, scroll, ImGui::GetScrollMaxY() );
+				scroll = Clamp( 0.0f, scroll, ImGui::GetScrollMaxY() );
 				ImGui::SetScrollY( scroll );
 			}
 
@@ -325,7 +323,7 @@ static void Con_DisplayList( const char ** list ) {
 }
 
 static size_t CommonPrefixLength( const char * a, const char * b ) {
-	size_t n = min( strlen( a ), strlen( b ) );
+	size_t n = Min2( strlen( a ), strlen( b ) );
 	size_t len = 0;
 	for( size_t i = 0; i < n; i++ ) {
 		if( a[ i ] != b[ i ] )
@@ -396,7 +394,7 @@ static void TabCompletion( char * buf, int buf_size ) {
 			continue;
 		const char ** candidate = &completion_lists[ i ][ 0 ];
 		while( *candidate != NULL ) {
-			common_prefix_len = min( common_prefix_len, CommonPrefixLength( completion, *candidate ) );
+			common_prefix_len = Min2( common_prefix_len, CommonPrefixLength( completion, *candidate ) );
 			candidate++;
 		}
 	}
@@ -422,7 +420,7 @@ static void TabCompletion( char * buf, int buf_size ) {
 	}
 
 	if( completion != NULL ) {
-		size_t to_copy = min( common_prefix_len + 1, buf_size - ( input - console.input ) );
+		size_t to_copy = qmin( common_prefix_len + 1, buf_size - ( input - console.input ) );
 		Q_strncpyz( input, completion, to_copy );
 		if( total_candidates == 1 )
 			Q_strncatz( buf, " ", buf_size );

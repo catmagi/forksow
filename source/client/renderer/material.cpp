@@ -19,14 +19,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <algorithm> // std::sort
+
 #include "qcommon/base.h"
-#include "qcommon/assets.h"
 #include "qcommon/hash.h"
 #include "qcommon/hashtable.h"
 #include "qcommon/string.h"
 #include "qcommon/span2d.h"
 #include "gameshared/q_shared.h"
 #include "client/client.h"
+#include "client/assets.h"
 #include "client/threadpool.h"
 #include "client/renderer/renderer.h"
 
@@ -258,15 +260,9 @@ static void Shaderpass_Map( Material * material, const char * name, const char *
 	Shaderpass_MapExt( material, ptr );
 }
 
-static void ColorNormalize( const vec3_t in, vec3_t out ) {
-	float f = Max2( Max2( in[0], in[1] ), in[2] );
-
-	if( f > 1.0f ) {
-		f = 1.0f / f;
-		VectorScale( in, f, out );
-	} else {
-		VectorCopy( in, out );
-	}
+static Vec3 NormalizeColor( Vec3 color ) {
+	float f = Max2( Max2( color.x, color.y ), color.z );
+	return f > 1.0f ? color / f : color;
 }
 
 static void Shaderpass_RGBGen( Material * material, const char * name, const char ** ptr ) {
@@ -290,9 +286,12 @@ static void Shaderpass_RGBGen( Material * material, const char * name, const cha
 	}
 	else if( !strcmp( token, "const" ) ) {
 		material->rgbgen.type = ColorGenType_Constant;
-		vec3_t color;
-		Shader_ParseVector( ptr, color, 3 );
-		ColorNormalize( color, material->rgbgen.args );
+		Vec3 color;
+		Shader_ParseVector( ptr, color.ptr(), 3 );
+		color = NormalizeColor( color );
+		material->rgbgen.args[ 0 ] = color.x;
+		material->rgbgen.args[ 1 ] = color.y;
+		material->rgbgen.args[ 2 ] = color.z;
 	}
 }
 
@@ -430,7 +429,7 @@ static void ParseMaterial( Material * material, const char * name, const char **
 	}
 }
 
-static void AddTexture( u64 hash, const TextureConfig & config ) {
+static Texture * AddTexture( u64 hash, const TextureConfig & config ) {
 	ZoneScoped;
 
 	assert( num_textures < ARRAY_COUNT( textures ) );
@@ -452,6 +451,7 @@ static void AddTexture( u64 hash, const TextureConfig & config ) {
 	}
 
 	textures[ idx ] = NewTexture( config );
+	return &textures[ idx ];
 }
 
 static void LoadBuiltinTextures() {
@@ -544,7 +544,8 @@ static void LoadTexture( const char * path, u8 * pixels, int w, int h, int chann
 	config.format = formats[ channels - 1 ];
 
 	Span< const char > ext = FileExtension( path );
-	AddTexture( Hash64( path, strlen( path ) - ext.n ), config );
+	Texture * texture = AddTexture( Hash64( path, strlen( path ) - ext.n ), config );
+	texture->data = pixels;
 }
 
 static void LoadMaterialFile( const char * path ) {
@@ -590,15 +591,6 @@ struct DecodeTextureJob {
 		u8 * pixels;
 	} out;
 };
-
-static void DecodeTextureWorker( TempAllocator * temp, void * data ) {
-	DecodeTextureJob * job = ( DecodeTextureJob * ) data;
-
-	ZoneScoped;
-	ZoneText( job->in.path, strlen( job->in.path ) );
-
-	job->out.pixels = stbi_load_from_memory( job->in.data.ptr, job->in.data.num_bytes(), &job->out.width, &job->out.height, &job->out.channels, 0 );
-}
 
 static void CopyImage( Span2D< RGBA8 > dst, int x, int y, const Texture * texture ) {
 	Span2D< const RGBA8 > src( ( const RGBA8 * ) texture->data, texture->width, texture->height );
@@ -705,7 +697,14 @@ void InitMaterials() {
 			} );
 		}
 
-		ParallelFor( DecodeTextureWorker, jobs.span() );
+		ParallelFor( jobs.span(), []( TempAllocator * temp, void * data ) {
+			DecodeTextureJob * job = ( DecodeTextureJob * ) data;
+
+			ZoneScopedN( "stbi_load_from_memory" );
+			ZoneText( job->in.path, strlen( job->in.path ) );
+
+			job->out.pixels = stbi_load_from_memory( job->in.data.ptr, job->in.data.num_bytes(), &job->out.width, &job->out.height, &job->out.channels, 0 );
+		} );
 
 		for( DecodeTextureJob job : jobs ) {
 			LoadTexture( job.in.path, job.out.pixels, job.out.width, job.out.height, job.out.channels );
@@ -742,6 +741,7 @@ void HotloadMaterials() {
 			u8 * pixels;
 			{
 				ZoneScopedN( "stbi_load_from_memory" );
+				ZoneText( path, strlen( path ) );
 				pixels = stbi_load_from_memory( data.ptr, data.num_bytes(), &w, &h, &channels, 0 );
 			}
 

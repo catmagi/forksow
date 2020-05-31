@@ -11,14 +11,13 @@
 #define WEAPONUP_TIME_VERY_SLOW 1000
 
 const WeaponDef gs_weaponDefs[] = {
-	{ "", "", "" },
+	{ "", "" },
 
 	{
 		"Knife", "gb",
-		"Knife people in the face",
 		0,
 
-		0,                              // projectiles fired each shot
+		6,                              // projectiles fired each shot
 		0,                              // clip size
 		0,                              // reload time
 		false,                          // staged reloading
@@ -44,12 +43,11 @@ const WeaponDef gs_weaponDefs[] = {
 
 		//projectile def
 		INSTANT,                        // speed
-		0,                              // spread
+		45,                             // spread
 	},
 
 	{
 		"9mm", "9mm",
-		"Pew pew pew",
 		100,
 
 		1,                              // projectiles fired each shot
@@ -60,9 +58,9 @@ const WeaponDef gs_weaponDefs[] = {
 		//timings (in msecs)
 		WEAPONUP_TIME_FAST,             // weapon up time
 		WEAPONDOWN_TIME,                // weapon down time
-		100,                            // refire time
+		120,                            // refire time
 		HITSCAN_RANGE,                  // projectile timeout
-		2.75f,                            // recoil
+		2.50f,                            // recoil
 		FiringMode_SemiAuto,
 
 		0.0f,                           // zoom fov
@@ -83,7 +81,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"SMG", "mg",
-		"Shoots fast direct bullets touching enemies at any range",
 		100,
 
 		1,                              // projectiles fired each shot
@@ -117,7 +114,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Deagle", "deagle",
-		"Bang bang",
 		200,
 
 		1,                              // projectiles fired each shot
@@ -151,7 +147,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Shotgun", "rg",
-		"Basically a shotgun",
 		100,
 
 		25,                             // projectiles fired each shot
@@ -185,29 +180,28 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Assault Rifle", "ar",
-		"Dakka dakka",
 		200,
 
 		1,                              // projectiles fired each shot
-		20,                             // clip size
+		25,                             // clip size
 		2000,                           // reload time
 		false,                          // staged reloading
 
 		//timings (in msecs)
 		WEAPONUP_TIME_NORMAL,           // weapon up time
 		WEAPONDOWN_TIME,                // weapon down time
-		160,                            // refire time
+		190,                            // refire time
 		HITSCAN_RANGE,                  // projectile timeout
-		3.5f,                           // recoil
+		1.5f,                           // recoil
 		FiringMode_Auto,
 
-		60.0f,                          // zoom fov
+		0.0f,                           // zoom fov
 		0.0f,                           // !zoom inaccuracy
 
 		//damages
-		12,                             // damage
+		14,                             // damage
 		0,                              // selfdamage ratio
-		15,                             // knockback
+		10,                             // knockback
 		0,                              // splash radius
 		0,                              // splash minimum damage
 		0,                              // splash minimum knockback
@@ -219,27 +213,26 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Grenades", "gl",
-		"Deprecated gun, enjoy it while it lasts nerds",
 		100,
 
 		1,                              // projectiles fired each shot
-		6,                              // clip size
-		750,                            // reload time
-		true,                           // staged reloading
+		5,                              // clip size
+		1500,                            // reload time
+		false,                           // staged reloading
 
 		//timings (in msecs)
 		WEAPONUP_TIME_NORMAL,           // weapon up time
 		WEAPONDOWN_TIME,                // weapon down time
 		500,                            // refire time
-		3000,                           // projectile timeout
-		20.0f,                          // recoil
+		1250,                           // projectile timeout
+		5.0f,                          // recoil
 		FiringMode_Auto,
 
 		0.0f,                           // zoom fov
 		0.0f,                           // !zoom inaccuracy
 
 		//damages
-		25,                             // damage
+		50,                             // damage
 		1.0f,                           // selfdamage ratio
 		100,                            // knockback
 		120,                            // splash radius
@@ -247,13 +240,12 @@ const WeaponDef gs_weaponDefs[] = {
 		50,                             // splash minimum knockback
 
 		//projectile def
-		1400,                           // speed
-		50,                              // spread
+		420,                           // speed
+		0,                              // spread
 	},
 
 	{
 		"Rockets", "rl",
-		"Shoots slow moving rockets that deal damage in an area and push bodies away",
 		200,
 
 		1,                              // projectiles fired each shot
@@ -287,7 +279,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Plasma", "pg",
-		"Shoots fast projectiles that deal damage in an area",
 		100,
 
 		1,                              // projectiles fired each shot
@@ -309,19 +300,51 @@ const WeaponDef gs_weaponDefs[] = {
 		//damages
 		5,                              // damage
 		0,                              // selfdamage ratio
-		30,                             // knockback
+		20,                             // knockback
 		45,                             // splash radius
 		4,                              // splash minimum damage
 		1,                              // splash minimum knockback
 
 		//projectile def
 		3500,                           // speed
+		0.0f,                           // spread
+	},
+
+	{
+		"BubbleGun", "bg",
+		100,
+
+		3,                              // projectiles fired each shot
+		20,                             // clip size
+		2000,                           // reload time
+		false,                          // staged reloading
+
+		//timings (in msecs)
+		WEAPONUP_TIME_NORMAL,           // weapon up time
+		WEAPONDOWN_TIME,                // weapon down time
+		100,                            // refire time
+		3000,                           // projectile timeout
+		3.0f,                           // recoil
+		FiringMode_Auto,
+
+		0.0f,                           // zoom fov
+		0.0f,                           // !zoom inaccuracy
+
+		//damages
+		2,                              // damage
+		0,                              // selfdamage ratio
+		8,                              // knockback
+		80,                             // splash radius
+		1,                              // splash minimum damage
+		6,                              // splash minimum knockback
+
+		//projectile def
+		600,                            // speed
 		0,                              // spread
 	},
 
 	{
 		"Laser", "lg",
-		"Shoots a continuous trail doing quick but low damage at a certain range",
 		200,
 
 		1,                              // projectiles fired each shot
@@ -355,12 +378,11 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Railgun", "eb",
-		"Shoots a direct laser hit doing pretty high damage",
 		200,
 
 		1,                              // projectiles fired each shot
-		4,                              // clip size
-		700,                            // reload time
+		5,                              // clip size
+		600,                            // reload time
 		true,                           // staged reloading
 
 		//timings (in msecs)
@@ -377,7 +399,7 @@ const WeaponDef gs_weaponDefs[] = {
 		//damages
 		25,                             // damage
 		0,                              // selfdamage ratio
-		100,                            // knockback
+		50,                             // knockback
 		0,                              // splash radius
 		0,                              // minimum damage
 		0,                              // minimum knockback
@@ -389,7 +411,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Sniper", "sniper",
-		"Boom boom",
 		200,
 
 		1,                              // projectiles fired each shot
@@ -400,12 +421,12 @@ const WeaponDef gs_weaponDefs[] = {
 		//timings (in msecs)
 		WEAPONUP_TIME_VERY_SLOW,        // weapon up time
 		WEAPONDOWN_TIME,                // weapon down time
-		50,                             // refire time
+		500,                             // refire time
 		HITSCAN_RANGE,                  // range
-		40.0f,                          // recoil
+		100.0f,                          // recoil
 		FiringMode_Auto,
 
-		30.0f,                          // zoom fov
+		25.0f,                          // zoom fov
 		30.0f,                          // !zoom inaccuracy
 
 		//damages
@@ -423,7 +444,6 @@ const WeaponDef gs_weaponDefs[] = {
 
 	{
 		"Rifle", "rifle",
-		"Goochie gun",
 		200,
 
 		1,                              // projectiles fired each shot

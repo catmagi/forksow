@@ -20,9 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qcommon/base.h"
 #include "client/client.h"
+#include "client/assets.h"
 #include "client/threadpool.h"
 #include "client/renderer/renderer.h"
-#include "qcommon/assets.h"
 #include "qcommon/asyncstream.h"
 #include "qcommon/version.h"
 #include "qcommon/hash.h"
@@ -356,7 +356,7 @@ static void CL_Connect_Cmd_f( socket_type_t socket ) {
 	}
 
 	if( ( tmp = Q_strrstr( connectstring, "@" ) ) != NULL ) {
-		Q_strncpyz( password, connectstring, min( sizeof( password ),( tmp - connectstring + 1 ) ) );
+		Q_strncpyz( password, connectstring, qmin( sizeof( password ), tmp - connectstring + 1 ) );
 		Cvar_Set( "password", password );
 		connectstring += ( tmp - connectstring ) + 1;
 	}
@@ -1300,7 +1300,6 @@ static void CL_InitLocal( void ) {
 	}
 
 	Cvar_Get( "hand", "0", CVAR_USERINFO | CVAR_ARCHIVE );
-	Cvar_Get( "handicap", "0", CVAR_USERINFO | CVAR_ARCHIVE );
 
 	Cvar_Get( "cl_download_name", "", CVAR_READONLY );
 	Cvar_Get( "cl_download_percent", "0", CVAR_READONLY );
@@ -1430,7 +1429,7 @@ int CL_SmoothTimeDeltas( void ) {
 		return cl.serverTimeDeltas[cl.currentSnapNum & MASK_TIMEDELTAS_BACKUP];
 	}
 
-	i = cl.receivedSnapNum - min( MAX_TIMEDELTAS_BACKUP, 8 );
+	i = cl.receivedSnapNum - Min2( MAX_TIMEDELTAS_BACKUP, 8 );
 	if( i < 0 ) {
 		i = 0;
 	}
@@ -1711,8 +1710,8 @@ void CL_Frame( int realMsec, int gameMsec ) {
 		Cvar_ForceSet( "cl_maxfps", va( "%i", absMinFps ) );
 	}
 	maxFps = IsWindowFocused() ? cl_maxfps->value : absMinFps;
-	minMsec = max( ( 1000.0f / maxFps ), 1 );
-	roundingMsec += max( ( 1000.0f / maxFps ), 1.0f ) - minMsec;
+	minMsec = Max2( 1000.0f / maxFps, 1.0f );
+	roundingMsec += Max2( 1000.0f / maxFps, 1.0f ) - minMsec;
 
 	if( roundingMsec >= 1.0f ) {
 		minMsec += (int)roundingMsec;
@@ -1755,7 +1754,7 @@ void CL_Frame( int realMsec, int gameMsec ) {
 	allRealMsec = 0;
 	allGameMsec = 0;
 
-	VectorCopy( cl.viewangles, cl.prevviewangles );
+	cl.prevviewangles = cl.viewangles;
 
 	cls.framecount++;
 

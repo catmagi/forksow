@@ -1,5 +1,4 @@
 #include "qcommon/base.h"
-#include "qcommon/qcommon.h" // TODO: delete min/max macros and add tracy to base
 #include "qcommon/threads.h"
 #include "client/client.h"
 #include "client/threadpool.h"
@@ -27,7 +26,9 @@ static Worker workers[ 32 ];
 static u32 num_workers;
 
 static void ThreadPoolWorker( void * data ) {
+#if TRACY_ENABLE
 	tracy::SetThreadName( "Thread pool worker" );
+#endif
 
 	ArenaAllocator * arena = ( ArenaAllocator * ) data;
 
@@ -123,7 +124,7 @@ void ThreadPoolDo( JobCallback callback, void * data ) {
 	Signal( jobs_sem );
 }
 
-void ParallelFor( JobCallback callback, void * datum, size_t n, size_t stride ) {
+void ParallelFor( void * datum, size_t n, size_t stride, JobCallback callback ) {
 	ZoneScoped;
 
 	Lock( jobs_mutex );
