@@ -15,6 +15,7 @@ struct Decal {
 };
 
 STATIC_ASSERT( sizeof( Decal ) % sizeof( Vec4 ) == 0 );
+STATIC_ASSERT( sizeof( Decal ) % alignof( Decal ) == 0 );
 
 static constexpr u32 MAX_DECALS = 100000;
 
