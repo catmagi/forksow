@@ -73,11 +73,11 @@ uniform samplerBuffer u_DecalData;
 uniform sampler2D u_DecalAtlas;
 #endif
 
-float proj_frac( vec3 p, vec3 o, vec3 d ) {
+float ProjectedScale( vec3 p, vec3 o, vec3 d ) {
 	return dot( p - o, d ) / dot( d, d );
 }
 
-void orthonormal_basis( vec3 v, out vec3 tangent, out vec3 bitangent ) {
+void OrthonormalBasis( vec3 v, out vec3 tangent, out vec3 bitangent ) {
 	float s = step( 0.0, v.z ) * 2.0 - 1.0;
 	float a = -1.0 / ( s + v.z );
 	float b = v.x * v.y * a;
@@ -125,7 +125,7 @@ void main() {
 			basis_v *= origin_radius.w * 2.0;
 			vec3 bottom_left = origin_radius.xyz - ( basis_u + basis_v ) * 0.5;
 
-			vec2 uv = vec2( proj_frac( v_Position, bottom_left, basis_u ), proj_frac( v_Position, bottom_left, basis_v ) );
+			vec2 uv = vec2( ProjectedScale( v_Position, bottom_left, basis_u ), ProjectedScale( v_Position, bottom_left, basis_v ) );
 			uv = uvwh.xy + uvwh.zw * uv;
 
 			vec4 sample = texture( u_DecalAtlas, uv );
