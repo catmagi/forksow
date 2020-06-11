@@ -235,6 +235,21 @@ static void VertexFormatToGL( VertexFormat format, GLenum * type, int * num_comp
 	assert( false );
 }
 
+static void TextureBufferFormatToGL( TextureBufferFormat format, GLenum * internal_format, u32 * element_size ) {
+	switch( format ) {
+		case TextureBufferFormat_U8x4:
+			*internal_format = GL_RGBA8;
+			*element_size = 4 * sizeof( u8 );
+			return;
+		case TextureBufferFormat_Floatx4:
+			*internal_format = GL_RGBA32F;
+			*element_size = 4 * sizeof( float );
+			return;
+	}
+
+	assert( false );
+}
+
 void RenderBackendInit() {
 	ZoneScoped;
 	TracyGpuContext;
@@ -359,6 +374,15 @@ static void SetPipelineState( PipelineState pipeline, bool ccw_winding ) {
 			glBindTexture( GL_TEXTURE_2D, 0 );
 			glBindTexture( GL_TEXTURE_2D_MULTISAMPLE, 0 );
 		}
+	}
+
+	// texture buffer
+	glActiveTexture( GL_TEXTURE0 + ARRAY_COUNT( pipeline.shader->textures ) );
+	if( pipeline.shader->texture_buffer != 0 && pipeline.texture_buffer.name_hash == pipeline.shader->texture_buffer ) {
+		glBindTexture( GL_TEXTURE_BUFFER, pipeline.texture_buffer.tb.texture );
+	}
+	else {
+		glBindTexture( GL_TEXTURE_BUFFER, 0 );
 	}
 
 	// alpha blending
@@ -737,6 +761,35 @@ void DeleteIndexBuffer( IndexBuffer ib ) {
 	glDeleteBuffers( 1, &ib.ebo );
 }
 
+TextureBuffer NewTextureBuffer( TextureBufferFormat format, u32 len ) {
+	TextureBuffer tb;
+	glGenBuffers( 1, &tb.tbo );
+	glGenTextures( 1, &tb.texture );
+
+	glBindBuffer( GL_TEXTURE_BUFFER, tb.tbo );
+	glBindTexture( GL_TEXTURE_BUFFER, tb.texture );
+
+	GLenum internal_format;
+	u32 element_size;
+	TextureBufferFormatToGL( format, &internal_format, &element_size );
+	glTexBuffer( GL_TEXTURE_BUFFER, internal_format, tb.tbo );
+
+	assert( len * element_size < S32_MAX );
+	glBufferData( GL_TEXTURE_BUFFER, len * element_size, NULL, GL_STREAM_DRAW );
+
+	return tb;
+}
+
+void WriteTextureBuffer( TextureBuffer tb, const void * data, u32 len ) {
+	glBindBuffer( GL_TEXTURE_BUFFER, tb.tbo );
+	glBufferSubData( GL_TEXTURE_BUFFER, 0, len, data );
+}
+
+void DeleteTextureBuffer( TextureBuffer tb ) {
+	glDeleteBuffers( 1, &tb.tbo );
+	glDeleteTextures( 1, &tb.texture );
+}
+
 static Texture NewTextureSamples( TextureConfig config, int msaa_samples ) {
 	Texture texture = { };
 	texture.width = config.width;
@@ -1023,6 +1076,11 @@ bool NewShader( Shader * shader, Span< const char * > srcs, Span< int > lens ) {
 			glUniform1i( glGetUniformLocation( program, name ), num_textures );
 			shader->textures[ num_textures ] = Hash64( name, len );
 			num_textures++;
+		}
+
+		if( type == GL_SAMPLER_BUFFER ) {
+			glUniform1i( glGetUniformLocation( program, name ), ARRAY_COUNT( &Shader::textures ) );
+			shader->texture_buffer = Hash64( name, len );
 		}
 	}
 

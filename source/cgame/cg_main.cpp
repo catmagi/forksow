@@ -311,9 +311,14 @@ void CG_Init( const char *serverName, unsigned int playerNum,
 
 	CG_InitHUD();
 
+	InitDecals();
 	InitParticles();
 	InitPersistentBeams();
 	InitGibs();
+
+	AddDecal( Vec3( 80, -700, 560 ), Normalize( Vec3( 0, 0, 1 ) ), 128, 1, "weapons/rl/icon", vec4_red );
+	AddDecal( Vec3( -1075, 770, 400 ), Normalize( Vec3( 1, 0, 0 ) ), 32, 0, "weapons/rl/icon", vec4_red );
+	AddDecal( Vec3( -720, 770, 320 ), Normalize( Vec3( 1, 0, 1 ) ), 32, 0, "weapons/gl/icon", vec4_white );
 
 	CG_InitChat();
 
@@ -339,6 +344,7 @@ void CG_Shutdown() {
 	CG_ShutdownInput();
 	CG_ShutdownHUD();
 	ShutdownParticles();
+	ShutdownDecals();
 
 	CG_Free( const_cast< char * >( cgs.serverName ) );
 

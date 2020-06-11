@@ -67,7 +67,7 @@ struct MaterialLocation {
 static MaterialLocation material_locations[ MAX_MATERIALS ];
 static Hashtable< MAX_MATERIALS * 2 > material_locations_hashtable;
 
-static Vec4 decals[ MAX_DECALS ];
+static Vec4 decal_uvwhs[ MAX_DECALS ];
 static u32 num_decals;
 static Hashtable< MAX_DECALS * 2 > decals_hashtable;
 static Texture decals_atlas;
@@ -642,10 +642,10 @@ static void PackDecalAtlas() {
 		CopyImage( image, rects[ i ].x, rects[ i ].y, decal->texture );
 
 		decals_hashtable.add( decal->name, i );
-		decals[ i ].x = rects[ i ].x / float( DECAL_ATLAS_SIZE );
-		decals[ i ].y = rects[ i ].y / float( DECAL_ATLAS_SIZE );
-		decals[ i ].z = decal->texture->width / float( DECAL_ATLAS_SIZE );
-		decals[ i ].w = decal->texture->height / float( DECAL_ATLAS_SIZE );
+		decal_uvwhs[ i ].x = rects[ i ].x / float( DECAL_ATLAS_SIZE );
+		decal_uvwhs[ i ].y = rects[ i ].y / float( DECAL_ATLAS_SIZE );
+		decal_uvwhs[ i ].z = decal->texture->width / float( DECAL_ATLAS_SIZE );
+		decal_uvwhs[ i ].w = decal->texture->height / float( DECAL_ATLAS_SIZE );
 	}
 
 	// upload atlas
@@ -792,11 +792,11 @@ const Material * FindMaterial( const char * name, const Material * def ) {
 	return FindMaterial( StringHash( HashMaterialName( name ) ), def );
 }
 
-bool TryFindDecal( StringHash name, Vec4 * decal ) {
+bool TryFindDecal( StringHash name, Vec4 * uvwh ) {
 	u64 idx;
 	if( !decals_hashtable.get( name.hash, &idx ) )
 		return false;
-	*decal = decals[ idx ];
+	*uvwh = decal_uvwhs[ idx ];
 	return true;
 }
 

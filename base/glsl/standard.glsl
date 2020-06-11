@@ -58,7 +58,6 @@ void main() {
 out vec4 f_Albedo;
 
 uniform sampler2D u_BaseTexture;
-uniform sampler2D u_DecalAtlas;
 
 #if APPLY_SOFT_PARTICLE
 #include "include/softparticle.glsl"
@@ -67,8 +66,11 @@ uniform sampler2D u_DepthTexture;
 
 #if APPLY_DECALS
 layout( std140 ) uniform u_Decal {
-	vec4 u_DecalXYWH;
+	int u_NumDecals;
 };
+
+uniform samplerBuffer u_DecalData;
+uniform sampler2D u_DecalAtlas;
 #endif
 
 float proj_frac( vec3 p, vec3 o, vec3 d ) {
@@ -76,12 +78,12 @@ float proj_frac( vec3 p, vec3 o, vec3 d ) {
 }
 
 void orthonormal_basis( vec3 v, out vec3 tangent, out vec3 bitangent ) {
-	float s = step( v.z, 0.0 ) * 2.0 - 1.0;
-	float a = -1.0 / (s + v.z);
+	float s = step( 0.0, v.z ) * 2.0 - 1.0;
+	float a = -1.0 / ( s + v.z );
 	float b = v.x * v.y * a;
 
-	tangent = vec3(1.0 + s * v.x * v.x * a, s * b, -s * v.x);
-	bitangent = vec3(b, s + v.y * v.y * a, -v.y);
+	tangent = vec3( 1.0 + s * v.x * v.x * a, s * b, -s * v.x );
+	bitangent = vec3( b, s + v.y * v.y * a, -v.y );
 }
 
 void main() {
@@ -108,26 +110,29 @@ void main() {
 #endif
 
 #if APPLY_DECALS
-	vec3 decal_origin = vec3( -720.0, 770.0, 320.0 );
-	vec3 decal_normal = normalize( vec3( 1.0, 0.0, 1.0 ) );
-	vec4 decal_color = vec4( 1.0, 1.0, 1.0, 1.0 );
-	float decal_radius = 32.0;
-	float decal_angle = 0.0;
-	float decal_plane_dist = dot( decal_origin, decal_normal );
+	for( int i = 0; i < u_NumDecals; i++ ) {
+		vec4 origin_radius = texelFetch( u_DecalData, i * 4 + 0 );
 
-	if( distance( decal_origin, v_Position ) < decal_radius ) {
-		vec3 basis_u;
-		vec3 basis_v;
-		orthonormal_basis( decal_normal, basis_u, basis_v );
-		basis_u *= decal_radius * 2.0;
-		basis_v *= decal_radius * 2.0;
-		vec3 bottom_left = decal_origin - ( basis_u + basis_v ) * 0.5;
+		if( distance( origin_radius.xyz, v_Position ) < origin_radius.w ) {
+			vec4 normal_angle = texelFetch( u_DecalData, i * 4 + 1 );
+			vec4 decal_color = texelFetch( u_DecalData, i * 4 + 2 );
+			vec4 uvwh = texelFetch( u_DecalData, i * 4 + 3 );
 
-		vec2 uv = vec2( proj_frac( v_Position, bottom_left, basis_u ), proj_frac( v_Position, bottom_left, basis_v ) );
-		uv = u_DecalXYWH.xy + u_DecalXYWH.zw * uv;
+			vec3 basis_u;
+			vec3 basis_v;
+			orthonormal_basis( normal_angle.xyz, basis_u, basis_v );
+			basis_u *= origin_radius.w * 2.0;
+			basis_v *= origin_radius.w * 2.0;
+			vec3 bottom_left = origin_radius.xyz - ( basis_u + basis_v ) * 0.5;
 
-		vec4 sample = texture( u_DecalAtlas, uv );
-		diffuse.rgb += sample.rgb * sample.a * decal_color.rgb * decal_color.a * max( 0.0, dot( v_Normal, decal_normal ) );
+			vec2 uv = vec2( proj_frac( v_Position, bottom_left, basis_u ), proj_frac( v_Position, bottom_left, basis_v ) );
+			uv = uvwh.xy + uvwh.zw * uv;
+
+			vec4 sample = texture( u_DecalAtlas, uv );
+			float inv_cos_45_degrees = 1.41421356237;
+			float decal_alpha = sample.a * decal_color.a * max( 0.0, dot( v_Normal, normal_angle.xyz ) * inv_cos_45_degrees );
+			diffuse.rgb = mix( diffuse.rgb, sample.rgb * decal_color.rgb, decal_alpha );
+		}
 	}
 #endif
 

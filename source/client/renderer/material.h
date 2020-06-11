@@ -68,7 +68,7 @@ const Material * FindMaterial( StringHash name, const Material * def = NULL );
 const Material * FindMaterial( const char * name, const Material * def = NULL );
 bool TryFindMaterial( StringHash name, const Material ** material );
 
-bool TryFindDecal( StringHash name, Vec4 * decal );
+bool TryFindDecal( StringHash name, Vec4 * uvwh );
 const Texture * DecalAtlasTexture();
 
 Vec2 HalfPixelSize( const Material * material );

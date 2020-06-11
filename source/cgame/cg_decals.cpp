@@ -1,12 +1,63 @@
 #include "qcommon/base.h"
+#include "qcommon/qcommon.h"
+#include "client/renderer/renderer.h"
 
-void AddDecal( Vec3 origin, Vec3 normal, float radius, float angle, const Material * material, RGBA8 color ) {
+static TextureBuffer decal_buffer;
+
+// gets copied directly to GPU so packing order is important
+struct Decal {
+	Vec3 origin;
+	float radius;
+	Vec3 normal;
+	float angle;
+	Vec4 color;
+	Vec4 uvwh;
+};
+
+STATIC_ASSERT( sizeof( Decal ) % sizeof( Vec4 ) == 0 );
+
+static constexpr u32 MAX_DECALS = 100000;
+
+static Decal decals[ MAX_DECALS ];
+static u32 num_decals;
+
+void InitDecals() {
+	decal_buffer = NewTextureBuffer( TextureBufferFormat_Floatx4, MAX_DECALS * sizeof( Decal ) / sizeof( Vec4 ) );
 }
 
-/*
-[origin.x, origin.y, origin.z, radius] RGBA_Float
-[normal.x, normal.y, normal.z, angle] RGBA_Float
-[color.r, color.g, color.b, color.a] RGBA_U8_sRGB
-[min_uv.u, min_uv.v, max_uv.u, max_uv.v] RGBA_Float
-[half_pixel_size] R_Float
-*/
+void ShutdownDecals() {
+	DeleteTextureBuffer( decal_buffer );
+}
+
+void AddDecal( Vec3 origin, Vec3 normal, float radius, float angle, StringHash name, Vec4 color ) {
+	if( num_decals >= ARRAY_COUNT( decals ) )
+		return;
+
+	Decal * decal = &decals[ num_decals ];
+
+	if( !TryFindDecal( name, &decal->uvwh ) ) {
+		Com_Printf( "Material %s should have decal key\n", name.str );
+		return;
+	}
+
+	decal->origin = origin;
+	decal->normal = normal;
+	decal->radius = radius;
+	decal->angle = angle;
+	decal->color = color;
+
+	num_decals++;
+}
+
+void UploadDecalBuffer() {
+	decals[ 1 ].origin.y = 770 + sinf( 0.001f * Sys_Milliseconds() ) * 64;
+	WriteTextureBuffer( decal_buffer, decals, num_decals * sizeof( decals[ 0 ] ) );
+}
+
+TextureBuffer DecalsBuffer() {
+	return decal_buffer;
+}
+
+UniformBlock DecalsUniformBlock() {
+	return UploadUniformBlock( s32( num_decals ) );
+}

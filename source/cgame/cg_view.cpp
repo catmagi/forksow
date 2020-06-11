@@ -629,11 +629,8 @@ static void DrawWorld() {
 			pipeline.set_uniform( "u_View", frame_static.view_uniforms );
 			pipeline.set_uniform( "u_Model", frame_static.identity_model_uniforms );
 			pipeline.set_texture( "u_DecalAtlas", DecalAtlasTexture() );
-
-			Vec4 decal;
-			TryFindDecal( "weapons/gl/icon", &decal );
-
-			pipeline.set_uniform( "u_Decal", UploadUniformBlock( decal ) );
+			pipeline.set_uniform( "u_Decal", DecalsUniformBlock() );
+			pipeline.set_texture_buffer( "u_DecalData", DecalsBuffer() );
 
 			DrawModelPrimitive( model, &model->primitives[ i ], pipeline );
 		}
@@ -859,4 +856,6 @@ void CG_RenderView( unsigned extrapolationTime ) {
 	S_Update( cg.view.origin, cg.view.velocity, cg.view.axis );
 
 	CG_Draw2D();
+
+	UploadDecalBuffer();
 }

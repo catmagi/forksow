@@ -87,12 +87,22 @@ enum IndexFormat : u8 {
 	IndexFormat_U32,
 };
 
+enum TextureBufferFormat : u8 {
+	TextureBufferFormat_U8x4,
+	TextureBufferFormat_Floatx4,
+};
+
 struct VertexBuffer {
 	u32 vbo;
 };
 
 struct IndexBuffer {
 	u32 ebo;
+};
+
+struct TextureBuffer {
+	u32 tbo;
+	u32 texture;
 };
 
 struct Texture {
@@ -111,6 +121,7 @@ struct Shader {
 	u32 program;
 	u64 uniforms[ SHADER_MAX_UNIFORM_BLOCKS ];
 	u64 textures[ SHADER_MAX_TEXTURES ];
+	u64 texture_buffer;
 };
 
 struct Framebuffer {
@@ -138,12 +149,18 @@ struct PipelineState {
 		const Texture * texture;
 	};
 
+	struct TextureBufferBinding {
+		u64 name_hash;
+		TextureBuffer tb;
+	};
+
 	struct Scissor {
 		u32 x, y, w, h;
 	};
 
 	UniformBinding uniforms[ SHADER_MAX_UNIFORM_BLOCKS ];
 	TextureBinding textures[ SHADER_MAX_TEXTURES ];
+	TextureBufferBinding texture_buffer = { };
 	size_t num_uniforms = 0;
 	size_t num_textures = 0;
 
@@ -181,6 +198,11 @@ struct PipelineState {
 		textures[ num_textures ].name_hash = name.hash;
 		textures[ num_textures ].texture = texture;
 		num_textures++;
+	}
+
+	void set_texture_buffer( StringHash name, TextureBuffer tb ) {
+		texture_buffer.name_hash = name.hash;
+		texture_buffer.tb = tb;
 	}
 };
 
@@ -337,6 +359,10 @@ template< typename T >
 IndexBuffer NewIndexBuffer( Span< T > data ) {
 	return NewIndexBuffer( data.ptr, data.num_bytes() );
 }
+
+TextureBuffer NewTextureBuffer( TextureBufferFormat format, u32 len );
+void WriteTextureBuffer( TextureBuffer tb, const void * data, u32 size );
+void DeleteTextureBuffer( TextureBuffer tb );
 
 Texture NewTexture( const TextureConfig & config );
 void UpdateTexture( Texture texture, int x, int y, int w, int h, const void * data );
