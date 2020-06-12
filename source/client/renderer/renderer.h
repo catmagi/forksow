@@ -13,6 +13,7 @@
  */
 struct FrameStatic {
 	u32 viewport_width, viewport_height;
+	u32 last_viewport_width, last_viewport_height;
 	Vec2 viewport;
 	float aspect_ratio;
 	int msaa_samples;
@@ -27,6 +28,7 @@ struct FrameStatic {
 	Mat4 V, inverse_V;
 	Mat4 P, inverse_P;
 	Vec3 position;
+	float vertical_fov;
 
 	Framebuffer world_gbuffer;
 	Framebuffer world_outlines_fb;

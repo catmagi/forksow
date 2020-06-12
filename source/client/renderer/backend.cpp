@@ -241,6 +241,14 @@ static void TextureBufferFormatToGL( TextureBufferFormat format, GLenum * intern
 			*internal_format = GL_RGBA8;
 			*element_size = 4 * sizeof( u8 );
 			return;
+		case TextureBufferFormat_U32:
+			*internal_format = GL_R32UI;
+			*element_size = sizeof( u32 );
+			return;
+		case TextureBufferFormat_U32x2:
+			*internal_format = GL_RG32UI;
+			*element_size = 2 * sizeof( u32 );
+			return;
 		case TextureBufferFormat_Floatx4:
 			*internal_format = GL_RGBA32F;
 			*element_size = 4 * sizeof( float );
@@ -376,13 +384,22 @@ static void SetPipelineState( PipelineState pipeline, bool ccw_winding ) {
 		}
 	}
 
-	// texture buffer
-	glActiveTexture( GL_TEXTURE0 + ARRAY_COUNT( pipeline.shader->textures ) );
-	if( pipeline.shader->texture_buffer != 0 && pipeline.texture_buffer.name_hash == pipeline.shader->texture_buffer ) {
-		glBindTexture( GL_TEXTURE_BUFFER, pipeline.texture_buffer.tb.texture );
-	}
-	else {
-		glBindTexture( GL_TEXTURE_BUFFER, 0 );
+	// texture buffers
+	for( size_t i = 0; i < ARRAY_COUNT( pipeline.shader->texture_buffers ); i++ ) {
+		glActiveTexture( GL_TEXTURE0 + ARRAY_COUNT( pipeline.shader->textures ) + i );
+
+		bool found = false;
+		for( size_t j = 0; j < pipeline.num_texture_buffers; j++ ) {
+			if( pipeline.texture_buffers[ j ].name_hash == pipeline.shader->texture_buffers[ i ] ) {
+				glBindTexture( GL_TEXTURE_BUFFER, pipeline.texture_buffers[ j ].tb.texture );
+				found = true;
+				break;
+			}
+		}
+
+		if( !found ) {
+			glBindTexture( GL_TEXTURE_BUFFER, 0 );
+		}
 	}
 
 	// alpha blending
@@ -1051,6 +1068,7 @@ bool NewShader( Shader * shader, Span< const char * > srcs, Span< int > lens ) {
 	glGetProgramiv( program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxlen );
 
 	size_t num_textures = 0;
+	size_t num_texture_buffers = 0;
 	for( GLint i = 0; i < count; i++ ) {
 		char name[ 128 ];
 		GLint size, len;
@@ -1065,7 +1083,8 @@ bool NewShader( Shader * shader, Span< const char * > srcs, Span< int > lens ) {
 
 		if( type == GL_SAMPLER_BUFFER ) {
 			glUniform1i( glGetUniformLocation( program, name ), ARRAY_COUNT( &Shader::textures ) );
-			shader->texture_buffer = Hash64( name, len );
+			shader->texture_buffers[ num_texture_buffers ] = Hash64( name, len );
+			num_texture_buffers++;
 		}
 	}
 

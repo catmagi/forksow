@@ -8,6 +8,6 @@ void InitDecals();
 void ShutdownDecals();
 
 void AddDecal( Vec3 origin, Vec3 normal, float radius, float angle, StringHash name, Vec4 color );
-void UploadDecalBuffer();
-TextureBuffer DecalsBuffer();
-UniformBlock DecalsUniformBlock();
+
+void UploadDecalBuffers();
+void AddDecalsToPipeline( PipelineState * pipeline );

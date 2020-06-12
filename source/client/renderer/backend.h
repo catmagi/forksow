@@ -69,6 +69,10 @@ enum VertexFormat : u8 {
 
 enum TextureBufferFormat : u8 {
 	TextureBufferFormat_U8x4,
+
+	TextureBufferFormat_U32,
+	TextureBufferFormat_U32x2,
+
 	TextureBufferFormat_Floatx4,
 };
 
@@ -110,9 +114,10 @@ struct PipelineState {
 
 	UniformBinding uniforms[ ARRAY_COUNT( &Shader::uniforms ) ];
 	TextureBinding textures[ ARRAY_COUNT( &Shader::textures ) ];
-	TextureBufferBinding texture_buffer = { };
+	TextureBufferBinding texture_buffers[ ARRAY_COUNT( &Shader::texture_buffers ) ];
 	size_t num_uniforms = 0;
 	size_t num_textures = 0;
+	size_t num_texture_buffers = 0;
 
 	u8 pass = U8_MAX;
 	const Shader * shader = NULL;
@@ -151,8 +156,16 @@ struct PipelineState {
 	}
 
 	void set_texture_buffer( StringHash name, TextureBuffer tb ) {
-		texture_buffer.name_hash = name.hash;
-		texture_buffer.tb = tb;
+		for( size_t i = 0; i < num_texture_buffers; i++ ) {
+			if( texture_buffers[ i ].name_hash == name.hash ) {
+				texture_buffers[ i ].tb = tb;
+				return;
+			}
+		}
+
+		texture_buffers[ num_texture_buffers ].name_hash = name.hash;
+		texture_buffers[ num_texture_buffers ].tb = tb;
+		num_texture_buffers++;
 	}
 };
 
