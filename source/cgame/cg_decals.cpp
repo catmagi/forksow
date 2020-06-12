@@ -37,7 +37,7 @@ void AddDecal( Vec3 origin, Vec3 normal, float radius, float angle, StringHash n
 	Decal * decal = &decals[ num_decals ];
 
 	if( !TryFindDecal( name, &decal->uvwh ) ) {
-		Com_Printf( "Material %s should have decal key\n", name.str );
+		Com_GGPrint( "Material {} should have decal key", name );
 		return;
 	}
 

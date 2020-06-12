@@ -120,7 +120,7 @@ void main() {
 
 			vec3 basis_u;
 			vec3 basis_v;
-			orthonormal_basis( normal_angle.xyz, basis_u, basis_v );
+			OrthonormalBasis( normal_angle.xyz, basis_u, basis_v );
 			basis_u *= origin_radius.w * 2.0;
 			basis_v *= origin_radius.w * 2.0;
 			vec3 bottom_left = origin_radius.xyz - ( basis_u + basis_v ) * 0.5;
