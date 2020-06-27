@@ -28,6 +28,7 @@ struct FrameStatic {
 	Mat4 P, inverse_P;
 	Vec3 position;
 
+	Framebuffer screen_fb;
 	Framebuffer world_gbuffer;
 	Framebuffer world_outlines_fb;
 	Framebuffer silhouette_gbuffer;
@@ -48,6 +49,7 @@ struct FrameStatic {
 
 	u8 add_silhouettes_pass;
 
+	u8 postprocess_pass;
 	u8 blur_pass;
 	u8 ui_pass;
 };

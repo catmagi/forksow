@@ -20,6 +20,7 @@ struct Shaders {
 	Shader write_silhouette_gbuffer_skinned;
 	Shader postprocess_silhouette_gbuffer;
 
+	Shader postprocess;
 	Shader blur;
 
 	Shader outline;

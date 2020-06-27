@@ -110,6 +110,9 @@ static void LoadShaders() {
 	BuildShaderSrcs( "glsl/postprocess_silhouette_gbuffer.glsl", NULL, &srcs, &lengths );
 	ReplaceShader( &shaders.postprocess_silhouette_gbuffer, srcs.span(), lengths.span() );
 
+	BuildShaderSrcs( "glsl/postprocess.glsl", NULL, &srcs, &lengths );
+	ReplaceShader( &shaders.postprocess, srcs.span(), lengths.span() );
+
 	BuildShaderSrcs( "glsl/blur.glsl", NULL, &srcs, &lengths );
 	ReplaceShader( &shaders.blur, srcs.span(), lengths.span() );
 

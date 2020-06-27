@@ -677,6 +677,13 @@ static void CG_Event_Jump( SyncEntityState * state ) {
 	}
 }
 
+static void CG_DamageEffect( int entNum, float amount ) {
+	if( !ISVIEWERENTITY( entNum ) )
+		return;
+
+	cg.damage_effect += amount;
+}
+
 /*
 * CG_EntityEvent
 */
@@ -832,10 +839,12 @@ void CG_EntityEvent( SyncEntityState *ent, int ev, u64 parm, bool predicted ) {
 			break;
 
 		case EV_PAIN:
+			CG_DamageEffect( ent->number, parm == PAIN_20 ? 0.5f : 0.25f );
 			CG_Event_Pain( ent, parm );
 			break;
 
 		case EV_DIE:
+			CG_DamageEffect( ent->ownerNum, 1.0f );
 			CG_Event_Die( ent->ownerNum, parm );
 			break;
 

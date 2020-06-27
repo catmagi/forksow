@@ -262,6 +262,18 @@ static void CreateFramebuffers() {
 	{
 		FramebufferConfig fb;
 
+		texture_config.format = TextureFormat_RGBA_U8;
+		fb.albedo_attachment = texture_config;
+
+		texture_config.format = TextureFormat_Depth;
+		fb.depth_attachment = texture_config;
+
+		frame_static.screen_fb = NewFramebuffer( fb );
+	}
+
+	{
+		FramebufferConfig fb;
+
 		texture_config.format = TextureFormat_RG_Half;
 		fb.normal_attachment = texture_config;
 
@@ -346,8 +358,8 @@ void RendererBeginFrame( u32 viewport_width, u32 viewport_height ) {
 		frame_static.add_world_outlines_pass = AddRenderPass( "Render world outlines", frame_static.msaa_fb );
 	}
 	else {
-		frame_static.world_opaque_pass = AddRenderPass( "Render world opaque", ClearColor_Do, ClearDepth_Do );
-		frame_static.add_world_outlines_pass = AddRenderPass( "Render world outlines" );
+		frame_static.world_opaque_pass = AddRenderPass( "Render world opaque", frame_static.screen_fb, ClearColor_Do, ClearDepth_Do );
+		frame_static.add_world_outlines_pass = AddRenderPass( "Render world outlines", frame_static.screen_fb );
 	}
 
 	frame_static.write_silhouette_gbuffer_pass = AddRenderPass( "Write silhouette gbuffer", frame_static.silhouette_gbuffer, ClearColor_Do, ClearDepth_Dont );
@@ -358,15 +370,23 @@ void RendererBeginFrame( u32 viewport_width, u32 viewport_height ) {
 		frame_static.sky_pass = AddRenderPass( "Render sky", frame_static.msaa_fb );
 		frame_static.transparent_pass = AddRenderPass( "Render transparent", frame_static.msaa_fb );
 
-		AddResolveMSAAPass( frame_static.msaa_fb );
+		AddResolveMSAAPass( frame_static.msaa_fb, frame_static.screen_fb );
 	}
 	else {
-		frame_static.nonworld_opaque_pass = AddRenderPass( "Render nonworld opaque" );
-		frame_static.sky_pass = AddRenderPass( "Render sky" );
-		frame_static.transparent_pass = AddRenderPass( "Render transparent" );
+		frame_static.nonworld_opaque_pass = AddRenderPass( "Render nonworld opaque", frame_static.screen_fb );
+		frame_static.sky_pass = AddRenderPass( "Render sky", frame_static.screen_fb );
+		frame_static.transparent_pass = AddRenderPass( "Render transparent", frame_static.screen_fb );
 	}
 
-	frame_static.add_silhouettes_pass = AddRenderPass( "Render silhouettes" );
+	frame_static.add_silhouettes_pass = AddRenderPass( "Render silhouettes", frame_static.screen_fb );
+
+	if( cls.cgameActive ) { // clearing buffer takes surprisingly long. (assumes postprocess doesn't discard anything)
+		frame_static.postprocess_pass = AddRenderPass( "Post Process" );
+	}
+	else {
+		frame_static.postprocess_pass = AddRenderPass( "Post Process", ClearColor_Do, ClearDepth_Do );
+	}
+
 	frame_static.blur_pass = AddRenderPass( "Blur screen" );
 	frame_static.ui_pass = AddUnsortedRenderPass( "Render UI" );
 }

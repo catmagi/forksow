@@ -604,6 +604,12 @@ static void CG_SetupViewDef( cg_viewdef_t *view, int type ) {
 	if( !view->playerPrediction ) {
 		cg.recoiling = false;
 	}
+
+	if( cg.damage_effect > 0.0f ) {
+		cg.damage_effect *= 0.97f;
+		if ( cg.damage_effect <= 0.000001f )
+			cg.damage_effect = 0.0f;
+	}
 }
 
 static void DrawWorld() {
@@ -761,6 +767,25 @@ static void DrawSilhouettes() {
 	}
 }
 
+void DrawPostProcess() {
+	ZoneScoped;
+
+	{
+		PipelineState pipeline;
+		pipeline.pass = frame_static.postprocess_pass;
+		pipeline.depth_func = DepthFunc_Disabled;
+		pipeline.shader = &shaders.postprocess;
+
+		const Framebuffer & fb = frame_static.screen_fb;
+		pipeline.set_texture( "u_Screen", &fb.albedo_texture );
+		pipeline.set_texture( "u_Noise", FindMaterial( "gfx/noise" )->texture );
+		pipeline.set_uniform( "u_View", frame_static.view_uniforms );
+		pipeline.set_uniform( "u_PostProcess", UploadUniformBlock( float( Sys_Milliseconds() ) * 0.001f, cg.damage_effect ) );
+
+		DrawFullscreenMesh( pipeline );
+	}
+}
+
 float global_attenuation = 1.0f;
 float global_refdist = 125.0f;
 float global_maxdist = 8000.0f;
@@ -847,6 +872,8 @@ void CG_RenderView( unsigned extrapolationTime ) {
 	DrawParticles();
 	DrawPersistentBeams();
 	DrawSkybox();
+
+	DrawPostProcess();
 
 	CG_AddLocalSounds();
 

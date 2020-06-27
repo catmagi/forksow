@@ -1210,10 +1210,11 @@ u8 AddUnsortedRenderPass( const char * name ) {
 	return AddRenderPass( pass );
 }
 
-void AddResolveMSAAPass( Framebuffer fb ) {
+void AddResolveMSAAPass( Framebuffer fb, Framebuffer target ) {
 	RenderPass pass;
 	pass.name = "Resolve MSAA";
 	pass.msaa_source = fb;
+	pass.target = target;
 
 	PipelineState dummy;
 	dummy.pass = AddRenderPass( pass );
@@ -1222,6 +1223,11 @@ void AddResolveMSAAPass( Framebuffer fb ) {
 	DrawCall dc = { };
 	dc.pipeline = dummy;
 	draw_calls.add( dc );
+}
+
+void AddResolveMSAAPass( Framebuffer fb ) {
+	Framebuffer target = { };
+	return AddResolveMSAAPass( fb, target );
 }
 
 void DeferDeleteMesh( const Mesh & mesh ) {

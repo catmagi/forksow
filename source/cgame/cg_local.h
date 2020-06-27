@@ -361,6 +361,8 @@ typedef struct {
 	float recoil;
 	float recoil_initial_pitch;
 
+	float damage_effect;
+
 	float oldBobTime;
 	int bobCycle;                   // odd cycles are right foot going forward
 	float bobFracSin;               // sin(bobfrac*M_PI)

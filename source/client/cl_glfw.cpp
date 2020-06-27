@@ -101,7 +101,7 @@ static void gl_debug_output_callback(
 		return;
 	}
 
-	if( type == GL_DEBUG_TYPE_PERFORMANCE ) {
+	if( type == GL_DEBUG_TYPE_PERFORMANCE || type == GL_DEBUG_TYPE_OTHER_KHR ) {
 		return;
 	}
 
