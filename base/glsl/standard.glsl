@@ -70,6 +70,8 @@ layout( std140 ) uniform u_Decal {
 };
 
 uniform samplerBuffer u_DecalData;
+uniform isamplerBuffer u_DecalIndices;
+uniform isamplerBuffer u_DecalTiles;
 uniform sampler2D u_DecalAtlas;
 #endif
 
@@ -110,13 +112,22 @@ void main() {
 #endif
 
 #if APPLY_DECALS
-	for( int i = 0; i < u_NumDecals; i++ ) {
-		vec4 origin_radius = texelFetch( u_DecalData, i * 4 + 0 );
+	float tile_size = 64.0;
+	int tile_row = int( ( u_ViewportSize.y - gl_FragCoord.y ) / tile_size );
+	int tile_col = int( gl_FragCoord.x / tile_size );
+	int cols = int( u_ViewportSize.x + tile_size - 1 ) / int( tile_size );
+	int tile_index = tile_row * cols + tile_col;
+
+	ivec2 tile = texelFetch( u_DecalTiles, tile_index ).xy;
+
+	for( int i = 0; i < tile.y; i++ ) {
+		int idx = texelFetch( u_DecalIndices, tile.x + i ).x;
+		vec4 origin_radius = texelFetch( u_DecalData, idx * 4 + 0 );
 
 		if( distance( origin_radius.xyz, v_Position ) < origin_radius.w ) {
-			vec4 normal_angle = texelFetch( u_DecalData, i * 4 + 1 );
-			vec4 decal_color = texelFetch( u_DecalData, i * 4 + 2 );
-			vec4 uvwh = texelFetch( u_DecalData, i * 4 + 3 );
+			vec4 normal_angle = texelFetch( u_DecalData, idx * 4 + 1 );
+			vec4 decal_color = texelFetch( u_DecalData, idx * 4 + 2 );
+			vec4 uvwh = texelFetch( u_DecalData, idx * 4 + 3 );
 
 			vec3 basis_u;
 			vec3 basis_v;

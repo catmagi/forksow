@@ -1081,8 +1081,8 @@ bool NewShader( Shader * shader, Span< const char * > srcs, Span< int > lens ) {
 			num_textures++;
 		}
 
-		if( type == GL_SAMPLER_BUFFER ) {
-			glUniform1i( glGetUniformLocation( program, name ), ARRAY_COUNT( &Shader::textures ) );
+		if( type == GL_SAMPLER_BUFFER || type == GL_INT_SAMPLER_BUFFER || type == GL_UNSIGNED_INT_SAMPLER_BUFFER ) {
+			glUniform1i( glGetUniformLocation( program, name ), ARRAY_COUNT( &Shader::textures ) + num_texture_buffers );
 			shader->texture_buffers[ num_texture_buffers ] = Hash64( name, len );
 			num_texture_buffers++;
 		}

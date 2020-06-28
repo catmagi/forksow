@@ -192,14 +192,35 @@ static Vec3 Unproject( Vec4 v ) {
 	return ( v / v.w ).xyz();
 }
 
+static InfiniteSquarePyramid ClipSpaceTileToPyramid( const Mat4 & invP, Vec2 mins, Vec2 maxs ) {
+	Vec3 near_topleft = Unproject( invP * Vec4( mins.x, mins.y, -1.0f, 1.0f ) );
+	Vec3 near_topright = Unproject( invP * Vec4( maxs.x, mins.y, -1.0f, 1.0f ) );
+	Vec3 near_botleft = Unproject( invP * Vec4( mins.x, maxs.y, -1.0f, 1.0f ) );
+	Vec3 near_botright = Unproject( invP * Vec4( maxs.x, maxs.y, -1.0f, 1.0f ) );
+
+	Vec3 far_topleft = Unproject( invP * Vec4( mins.x, mins.y, 1.0f, 1.0f ) );
+	Vec3 far_topright = Unproject( invP * Vec4( maxs.x, mins.y, 1.0f, 1.0f ) );
+	Vec3 far_botleft = Unproject( invP * Vec4( mins.x, maxs.y, 1.0f, 1.0f ) );
+	Vec3 far_botright = Unproject( invP * Vec4( maxs.x, maxs.y, 1.0f, 1.0f ) );
+
+	return PyramidFromPoints(
+		near_topleft, near_topright, near_botleft, near_botright,
+		far_topleft, far_topright, far_botleft, far_botright
+	);
+}
+
 void UploadDecalBuffers() {
+	ZoneScoped;
+
 	decals[ 1 ].origin.y = 770 + sinf( 0.001f * Sys_Milliseconds() ) * 64;
 
-	constexpr u32 tile_size = 16;
-	u32 rows = frame_static.viewport_height / tile_size;
-	u32 cols = frame_static.viewport_width / tile_size;
+	constexpr u32 tile_size = 64;
+	u32 rows = ( frame_static.viewport_height + tile_size - 1 ) / tile_size;
+	u32 cols = ( frame_static.viewport_width + tile_size - 1 ) / tile_size;
 
 	if( frame_static.viewport_width != last_viewport_width || frame_static.viewport_height != last_viewport_height ) {
+		ZoneScopedN( "Reallocate TBOs" );
+
 		decal_tile_buffer = NewTextureBuffer( TextureBufferFormat_U32x2, rows * cols );
 		decal_index_buffer = NewTextureBuffer( TextureBufferFormat_U32, rows * cols * MAX_DECALS_PER_TILE );
 
@@ -213,31 +234,24 @@ void UploadDecalBuffers() {
 	Mat4 P = FinitePerspectiveProjection( frame_static.vertical_fov, frame_static.aspect_ratio, 4.0f, 10000.0f );
 	Mat4 invP = InvertPerspectiveProjection( P );
 
-	Vec2 clip_tile_size = tile_size / frame_static.viewport;
+	Vec2 clip_tile_size = ( tile_size * 2.0f ) / frame_static.viewport;
 
 	for( u32 y = 0; y < rows; y++ ) {
 		for( u32 x = 0; x < cols; x++ ) {
+			ZoneScopedN( "Build decal list for tile" );
+
 			DecalTile * tile = &tiles( x, y );
 			tile->num_decals = 0;
 
-			Vec2 t = Vec2( x, y ) * clip_tile_size;
-			Vec2 t1 = Vec2( x + 1, y + 1 ) * clip_tile_size;
+			Vec2 t = Vec2( x, y ) * clip_tile_size - Vec2( 1.0f );
+			Vec2 t1 = Vec2( x + 1, y + 1 ) * clip_tile_size - Vec2( 1.0f );
+			t.y = -t.y;
+			t1.x = Min2( t1.x, 1.0f );
+			t1.y = -Min2( t1.y, 1.0f );
 
-			Vec3 near_topleft = Unproject( invP * Vec4( Lerp( -1.0f, t.x, 1.0f ), Lerp( 1.0f, t.y, -1.0f ), -1.0f, 1.0f ) );
-			Vec3 near_topright = Unproject( invP * Vec4( Lerp( -1.0f, t1.x, 1.0f ), Lerp( 1.0f, t.y, -1.0f ), -1.0f, 1.0f ) );
-			Vec3 near_botleft = Unproject( invP * Vec4( Lerp( -1.0f, t.x, 1.0f ), Lerp( 1.0f, t1.y, -1.0f ), -1.0f, 1.0f ) );
-			Vec3 near_botright = Unproject( invP * Vec4( Lerp( -1.0f, t1.x, 1.0f ), Lerp( 1.0f, t1.y, -1.0f ), -1.0f, 1.0f ) );
+			InfiniteSquarePyramid tile_frustum = ClipSpaceTileToPyramid( invP, t, t1 );
 
-			Vec3 far_topleft = Unproject( invP * Vec4( Lerp( -1.0f, t.x, 1.0f ), Lerp( 1.0f, t.y, -1.0f ), 1.0f, 1.0f ) );
-			Vec3 far_topright = Unproject( invP * Vec4( Lerp( -1.0f, t1.x, 1.0f ), Lerp( 1.0f, t.y, -1.0f ), 1.0f, 1.0f ) );
-			Vec3 far_botleft = Unproject( invP * Vec4( Lerp( -1.0f, t.x, 1.0f ), Lerp( 1.0f, t1.y, -1.0f ), 1.0f, 1.0f ) );
-			Vec3 far_botright = Unproject( invP * Vec4( Lerp( -1.0f, t1.x, 1.0f ), Lerp( 1.0f, t1.y, -1.0f ), 1.0f, 1.0f ) );
-
-			InfiniteSquarePyramid tile_frustum = PyramidFromPoints(
-				near_topleft, near_topright, near_botleft, near_botright,
-				far_topleft, far_topright, far_botleft, far_botright
-			);
-
+			/*
 			MinMax3 aabb = MinMax3::Empty();
 			aabb = Extend( aabb, near_topleft );
 			aabb = Extend( aabb, near_topright );
@@ -249,10 +263,12 @@ void UploadDecalBuffers() {
 			aabb = Extend( aabb, far_botright );
 			aabb.mins.z = -FLT_MAX;
 			aabb.maxs.z = 0.0f;
+			*/
 
 			for( u32 i = 0; i < num_decals; i++ ) {
 				Vec3 o = ( frame_static.V * Vec4( decals[ i ].origin, 1.0f ) ).xyz();
-				if( SphereOverlapsAABB( aabb, o, decals[ i ].radius ) && SphereOverlapsFrustum( tile_frustum, o, decals[ i ].radius ) ) {
+				// if( SphereOverlapsAABB( aabb, o, decals[ i ].radius ) && SphereOverlapsFrustum( tile_frustum, o, decals[ i ].radius ) ) {
+				if( o.z < 0.0f && SphereOverlapsFrustum( tile_frustum, o, decals[ i ].radius ) ) {
 					tile->indices[ tile->num_decals ] = i;
 					tile->num_decals++;
 
@@ -281,6 +297,8 @@ void UploadDecalBuffers() {
 				num_indices++;
 			}
 
+
+			//
 			Vec2 tl = Vec2( x, y ) * Vec2( tile_size );
 			Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( tile_size );
 			Vec2 dims = br - tl;
@@ -289,16 +307,21 @@ void UploadDecalBuffers() {
 			if( tile->num_decals == 1 ) color = vec4_green;
 			if( tile->num_decals == 2 ) color = vec4_red;
 			color.w = ( ( x + y ) % 2 == 0 ) ? 0.4f : 0.25f;
-			Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
+			// Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
 		}
 	}
 
-	WriteTextureBuffer( decal_buffer, decals, num_decals * sizeof( decals[ 0 ] ) );
-	WriteTextureBuffer( decal_index_buffer, indices, num_indices * sizeof( indices[ 0 ] ) );
-	WriteTextureBuffer( decal_tile_buffer, gpu_tiles.ptr, gpu_tiles.num_bytes() );
+	{
+		ZoneScopedN( "Upload TBOs" );
+		WriteTextureBuffer( decal_buffer, decals, num_decals * sizeof( decals[ 0 ] ) );
+		WriteTextureBuffer( decal_index_buffer, indices, num_indices * sizeof( indices[ 0 ] ) );
+		WriteTextureBuffer( decal_tile_buffer, gpu_tiles.ptr, gpu_tiles.num_bytes() );
+	}
 }
 
 void AddDecalsToPipeline( PipelineState * pipeline ) {
 	pipeline->set_uniform( "u_Decal", UploadUniformBlock( s32( num_decals ) ) );
 	pipeline->set_texture_buffer( "u_DecalData", decal_buffer );
+	pipeline->set_texture_buffer( "u_DecalIndices", decal_index_buffer );
+	pipeline->set_texture_buffer( "u_DecalTiles", decal_tile_buffer );
 }
