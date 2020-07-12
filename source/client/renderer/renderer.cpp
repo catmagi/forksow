@@ -380,6 +380,7 @@ void RendererSetView( Vec3 position, EulerDegrees3 angles, float vertical_fov ) 
 	frame_static.inverse_P = InvertPerspectiveProjection( frame_static.P );
 	frame_static.position = position;
 	frame_static.vertical_fov = vertical_fov;
+	frame_static.near_plane = near_plane;
 
 	frame_static.view_uniforms = UploadViewUniforms( frame_static.V, frame_static.inverse_V, frame_static.P, frame_static.inverse_P, position, frame_static.viewport, near_plane, frame_static.msaa_samples );
 }

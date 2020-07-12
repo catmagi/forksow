@@ -72,141 +72,71 @@ struct GPUDecalTile {
 	u32 num_decals;
 };
 
-struct Frustum {
-	Vec4 top;
-	Vec4 bottom;
-	Vec4 left;
-	Vec4 right;
-	Vec4 near;
-	Vec4 far;
-};
-
-struct InfiniteSquarePyramid {
-	Vec4 top;
-	Vec4 bottom;
-	Vec4 left;
-	Vec4 right;
-};
-
-static Mat4 FinitePerspectiveProjection( float vertical_fov_degrees, float aspect_ratio, float near_plane, float far_plane ) {
-	float tan_half_vertical_fov = tanf( DEG2RAD( vertical_fov_degrees ) / 2.0f );
-	float epsilon = 2.4e-6f;
-
-	return Mat4(
-		1.0f / ( tan_half_vertical_fov * aspect_ratio ),
-		0.0f,
-		0.0f,
-		0.0f,
-
-		0.0f,
-		1.0f / tan_half_vertical_fov,
-		0.0f,
-		0.0f,
-
-		0.0f,
-		0.0f,
-		-( far_plane + near_plane ) / ( far_plane - near_plane ),
-		-2.0f * far_plane * near_plane / ( far_plane - near_plane ),
-
-		0.0f,
-		0.0f,
-		-1.0f,
-		0.0f
-	);
+static float Square( float x ) {
+	return x * x;
 }
 
-static Mat4 InvertPerspectiveProjection( const Mat4 & P ) {
-	float a = P.col0.x;
-	float b = P.col1.y;
-	float c = P.col2.z;
-	float d = P.col3.z;
-	float e = P.col2.w;
+/*
+ * implementation of "2D Polyhedral Bounds of a Clipped, Perspective-Projected
+ * 3D Sphere" in JCGT
+ *
+ * https://pdfs.semanticscholar.org/9e5f/117618c96175ce683e9b708bacdfb8252e38.pdf
+ */
+static MinMax3 ScreenSpaceBoundsForAxis( Vec2 axis, Vec3 view_space_origin, float radius ) {
+	bool fully_infront_of_near_plane = view_space_origin.z + radius < -frame_static.near_plane;
 
-	return Mat4(
-		1.0f / a, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f / b, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f / e,
-		0.0f, 0.0f, 1.0f / d, -c / ( d * e )
-	);
-}
+	Vec2 C = Vec2( Dot( Vec3( axis, 0.0f ), view_space_origin ), view_space_origin.z );
 
-Frustum FrustumFromProjection( Mat4 m ) {
-	Frustum frustum;
+	float tSquared = Dot( C, C ) - radius * radius;
+	bool camera_outside_sphere = tSquared > 0.0f;
 
-	frustum.top = m.row3() - m.row1();
-	frustum.bottom = m.row3() + m.row1();
-	frustum.left = m.row3() + m.row0();
-	frustum.right = m.row3() - m.row0();
-	frustum.near = m.row3() + m.row2();
-	frustum.far = m.row3() - m.row2();
+	Vec2 min, max;
 
-	return frustum;
-}
+	if( camera_outside_sphere ) {
+		float t = sqrtf( tSquared );
+		float cos_theta = t / Length( C );
+		float sin_theta = radius / Length( C );
 
-static Vec4 PlaneFromPoints( Vec3 a, Vec3 b, Vec3 c ) {
-	Vec3 n = Normalize( Cross( b - a, c - a ) );
-	return Vec4( n, Dot( a, n ) );
-}
+		Mat2 Rtheta = Mat2Rotation( cos_theta, sin_theta );
+		Mat2 Rmintheta = Mat2Rotation( cos_theta, -sin_theta );
 
-static InfiniteSquarePyramid PyramidFromPoints( Vec3 ntl, Vec3 ntr, Vec3 nbl, Vec3 nbr, Vec3 ftl, Vec3 ftr, Vec3 fbl, Vec3 fbr ) {
-	InfiniteSquarePyramid pyramid;
-	pyramid.top = PlaneFromPoints( ntr, ftr, ntl );
-	pyramid.bottom = PlaneFromPoints( nbl, fbl, nbr );
-	pyramid.left = PlaneFromPoints( ntl, ftl, nbl );
-	pyramid.right = PlaneFromPoints( nbr, fbr, ntr );
-	return pyramid;
-}
-
-static Vec3 ClosestPointOnAABB( MinMax3 aabb, Vec3 p ) {
-	Vec3 r;
-	for( int i = 0; i < 3; i++ ) {
-		r[ i ] = Clamp( aabb.mins[ i ], p[ i ], aabb.maxs[ i ] );
+		max = cos_theta * ( Rtheta * C );
+		min = cos_theta * ( Rmintheta * C );
 	}
-	return r;
-}
 
-static bool SphereOverlapsAABB( MinMax3 aabb, Vec3 origin, float radius ) {
-	Vec3 closest = ClosestPointOnAABB( aabb, origin );
-	return LengthSquared( closest - origin ) <= radius * radius;
-}
+	if( !fully_infront_of_near_plane ) {
+		float chord_half_length = sqrtf( radius * radius - Square( frame_static.near_plane + C.y ) );
 
-static bool SphereFullyInfrontOfPlane( Vec4 plane, Vec3 origin, float radius ) {
-	return Dot( plane.xyz(), origin ) - plane.w > radius;
-}
+		if( !camera_outside_sphere || max.y > frame_static.near_plane ) {
+			max.x = C.x + chord_half_length;
+			max.y = -frame_static.near_plane;
+		}
 
-static bool SphereOverlapsFrustum( InfiniteSquarePyramid frustum, Vec3 origin, float radius ) {
-	return !( SphereFullyInfrontOfPlane( frustum.top, origin, radius ) ||
-		SphereFullyInfrontOfPlane( frustum.bottom, origin, radius ) ||
-		SphereFullyInfrontOfPlane( frustum.left, origin, radius ) ||
-		SphereFullyInfrontOfPlane( frustum.right, origin, radius ) );
-}
+		if( !camera_outside_sphere || min.y > frame_static.near_plane ) {
+			min.x = C.x - chord_half_length;
+			min.y = -frame_static.near_plane;
+		}
+	}
 
-static MinMax3 Extend( MinMax3 bounds, Vec3 p ) {
 	return MinMax3(
-		Vec3( Min2( bounds.mins.x, p.x ), Min2( bounds.mins.y, p.y ), Min2( bounds.mins.z, p.z ) ),
-		Vec3( Max2( bounds.maxs.x, p.x ), Max2( bounds.maxs.y, p.y ), Max2( bounds.maxs.z, p.z ) )
+		Vec3( min.x * axis, min.y ),
+		Vec3( max.x * axis, max.y )
 	);
 }
 
-static Vec3 Unproject( Vec4 v ) {
-	return ( v / v.w ).xyz();
-}
+static MinMax2 SphereScreenSpaceBounds( Vec3 origin, float radius ) {
+	Vec3 view_space_origin = ( frame_static.V * Vec4( origin, 1.0f ) ).xyz();
+	Mat4 P = frame_static.P;
 
-static InfiniteSquarePyramid ClipSpaceTileToPyramid( const Mat4 & invP, Vec2 mins, Vec2 maxs ) {
-	Vec3 near_topleft = Unproject( invP * Vec4( mins.x, mins.y, -1.0f, 1.0f ) );
-	Vec3 near_topright = Unproject( invP * Vec4( maxs.x, mins.y, -1.0f, 1.0f ) );
-	Vec3 near_botleft = Unproject( invP * Vec4( mins.x, maxs.y, -1.0f, 1.0f ) );
-	Vec3 near_botright = Unproject( invP * Vec4( maxs.x, maxs.y, -1.0f, 1.0f ) );
+	MinMax3 x_bounds = ScreenSpaceBoundsForAxis( Vec2( 1.0f, 0.0f ), view_space_origin, radius );
+	MinMax3 y_bounds = ScreenSpaceBoundsForAxis( Vec2( 0.0f, 1.0f ), view_space_origin, radius );
 
-	Vec3 far_topleft = Unproject( invP * Vec4( mins.x, mins.y, 1.0f, 1.0f ) );
-	Vec3 far_topright = Unproject( invP * Vec4( maxs.x, mins.y, 1.0f, 1.0f ) );
-	Vec3 far_botleft = Unproject( invP * Vec4( mins.x, maxs.y, 1.0f, 1.0f ) );
-	Vec3 far_botright = Unproject( invP * Vec4( maxs.x, maxs.y, 1.0f, 1.0f ) );
+	float min_x = Dot( x_bounds.mins, P.row0().xyz() ) / Dot( x_bounds.mins, P.row3().xyz() );
+	float max_x = Dot( x_bounds.maxs, P.row0().xyz() ) / Dot( x_bounds.maxs, P.row3().xyz() );
+	float min_y = Dot( y_bounds.mins, P.row1().xyz() ) / Dot( y_bounds.mins, P.row3().xyz() );
+	float max_y = Dot( y_bounds.maxs, P.row1().xyz() ) / Dot( y_bounds.maxs, P.row3().xyz() );
 
-	return PyramidFromPoints(
-		near_topleft, near_topright, near_botleft, near_botright,
-		far_topleft, far_topright, far_botleft, far_botright
-	);
+	return MinMax2( Vec2( min_x, min_y ), Vec2( max_x, max_y ) );
 }
 
 void UploadDecalBuffers() {
@@ -214,9 +144,8 @@ void UploadDecalBuffers() {
 
 	decals[ 1 ].origin.y = 770 + sinf( 0.001f * Sys_Milliseconds() ) * 64;
 
-	constexpr u32 tile_size = 64;
-	u32 rows = ( frame_static.viewport_height + tile_size - 1 ) / tile_size;
-	u32 cols = ( frame_static.viewport_width + tile_size - 1 ) / tile_size;
+	u32 rows = ( frame_static.viewport_height + TILE_SIZE - 1 ) / TILE_SIZE;
+	u32 cols = ( frame_static.viewport_width + TILE_SIZE - 1 ) / TILE_SIZE;
 
 	if( frame_static.viewport_width != last_viewport_width || frame_static.viewport_height != last_viewport_height ) {
 		ZoneScopedN( "Reallocate TBOs" );
@@ -229,59 +158,49 @@ void UploadDecalBuffers() {
 	}
 
 	Span2D< DecalTile > tiles = ALLOC_SPAN2D( sys_allocator, DecalTile, cols, rows );
-	defer { free( tiles.ptr ); };
+	memset( tiles.ptr, 0, tiles.num_bytes() );
+	defer { FREE( sys_allocator, tiles.ptr ); };
 
-	Mat4 P = FinitePerspectiveProjection( frame_static.vertical_fov, frame_static.aspect_ratio, 4.0f, 10000.0f );
-	Mat4 invP = InvertPerspectiveProjection( P );
+	for( u32 i = 0; i < num_decals; i++ ) {
+		MinMax2 bounds = SphereScreenSpaceBounds( decals[ i ].origin, decals[ i ].radius );
+		bounds.mins.y = -bounds.mins.y;
+		bounds.maxs.y = -bounds.maxs.y;
+		Swap2( &bounds.mins.y, &bounds.maxs.y );
 
-	Vec2 clip_tile_size = ( tile_size * 2.0f ) / frame_static.viewport;
+		Vec2 mins = ( bounds.mins + 1.0f ) * 0.5f * frame_static.viewport;
+		mins = Clamp( Vec2( 0.0f ), mins, frame_static.viewport - 1.0f ) / float( TILE_SIZE );
 
-	for( u32 y = 0; y < rows; y++ ) {
-		for( u32 x = 0; x < cols; x++ ) {
-			ZoneScopedN( "Build decal list for tile" );
+		Vec2 maxs = ( bounds.maxs + 1.0f ) * 0.5f * frame_static.viewport;
+		maxs = Clamp( Vec2( 0.0f ), maxs, frame_static.viewport - 1.0f ) / float( TILE_SIZE );
 
-			DecalTile * tile = &tiles( x, y );
-			tile->num_decals = 0;
-
-			Vec2 t = Vec2( x, y ) * clip_tile_size - Vec2( 1.0f );
-			Vec2 t1 = Vec2( x + 1, y + 1 ) * clip_tile_size - Vec2( 1.0f );
-			t.y = -t.y;
-			t1.x = Min2( t1.x, 1.0f );
-			t1.y = -Min2( t1.y, 1.0f );
-
-			InfiniteSquarePyramid tile_frustum = ClipSpaceTileToPyramid( invP, t, t1 );
-
-			/*
-			MinMax3 aabb = MinMax3::Empty();
-			aabb = Extend( aabb, near_topleft );
-			aabb = Extend( aabb, near_topright );
-			aabb = Extend( aabb, near_botleft );
-			aabb = Extend( aabb, near_botright );
-			aabb = Extend( aabb, far_topleft );
-			aabb = Extend( aabb, far_topright );
-			aabb = Extend( aabb, far_botleft );
-			aabb = Extend( aabb, far_botright );
-			aabb.mins.z = -FLT_MAX;
-			aabb.maxs.z = 0.0f;
-			*/
-
-			for( u32 i = 0; i < num_decals; i++ ) {
-				Vec3 o = ( frame_static.V * Vec4( decals[ i ].origin, 1.0f ) ).xyz();
-				// if( SphereOverlapsAABB( aabb, o, decals[ i ].radius ) && SphereOverlapsFrustum( tile_frustum, o, decals[ i ].radius ) ) {
-				if( o.z < 0.0f && SphereOverlapsFrustum( tile_frustum, o, decals[ i ].radius ) ) {
+		for( u32 y = mins.y; y <= maxs.y; y++ ) {
+			for( u32 x = mins.x; x <= maxs.x; x++ ) {
+				DecalTile * tile = &tiles( x, y );
+				if( tile->num_decals < ARRAY_COUNT( tile->indices ) ) {
 					tile->indices[ tile->num_decals ] = i;
 					tile->num_decals++;
-
-					if( tile->num_decals == ARRAY_COUNT( tile->indices ) ) {
-						break;
-					}
 				}
 			}
 		}
+
+		// draw debug sphere
+		const Model * sphere = FindModel( "models/sphere" );
+		PipelineState pipeline;
+		pipeline.pass = frame_static.nonworld_opaque_pass;
+		pipeline.shader = &shaders.standard;
+		pipeline.depth_func = DepthFunc_Disabled;
+		pipeline.wireframe = true;
+		pipeline.set_texture( "u_BaseTexture", cls.whiteTexture->texture );
+		pipeline.set_uniform( "u_View", frame_static.view_uniforms );
+		pipeline.set_uniform( "u_Material", frame_static.identity_material_uniforms );
+		pipeline.set_uniform( "u_Model", UploadModelUniforms( Mat4Translation( decals[ i ].origin ) * Mat4Scale( decals[ i ].radius ) * sphere->transform ) );
+
+		DrawModelPrimitive( sphere, &sphere->primitives[ 0 ], pipeline );
 	}
 
+	// pack tile buffer
 	Span2D< GPUDecalTile > gpu_tiles = ALLOC_SPAN2D( sys_allocator, GPUDecalTile, cols, rows );
-	defer { free( gpu_tiles.ptr ); };
+	defer { FREE( sys_allocator, gpu_tiles.ptr ); };
 
 	u32 indices[ MAX_DECALS ];
 	u32 num_indices = 0;
@@ -297,17 +216,15 @@ void UploadDecalBuffers() {
 				num_indices++;
 			}
 
-
-			//
-			Vec2 tl = Vec2( x, y ) * Vec2( tile_size );
-			Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( tile_size );
+			Vec2 tl = Vec2( x, y ) * Vec2( TILE_SIZE );
+			Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( TILE_SIZE );
 			Vec2 dims = br - tl;
 
 			Vec4 color = vec4_white;
 			if( tile->num_decals == 1 ) color = vec4_green;
 			if( tile->num_decals == 2 ) color = vec4_red;
 			color.w = ( ( x + y ) % 2 == 0 ) ? 0.4f : 0.25f;
-			// Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
+			Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
 		}
 	}
 

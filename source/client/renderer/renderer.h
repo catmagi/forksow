@@ -29,6 +29,7 @@ struct FrameStatic {
 	Mat4 P, inverse_P;
 	Vec3 position;
 	float vertical_fov;
+	float near_plane;
 
 	Framebuffer world_gbuffer;
 	Framebuffer world_outlines_fb;

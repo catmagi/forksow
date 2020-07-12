@@ -320,9 +320,9 @@ void CG_Init( const char *serverName, unsigned int playerNum,
 	AddDecal( Vec3( 80, -700, 560 ), Normalize( Vec3( 0, 0, 1 ) ), 128, 1, "weapons/rl/icon", vec4_red );
 	AddDecal( Vec3( -1075, 770, 400 ), Normalize( Vec3( 1, 0, 0 ) ), 32, 0, "weapons/rl/icon", vec4_red );
 	AddDecal( Vec3( -720, 770, 320 ), Normalize( Vec3( 1, 0, 1 ) ), 32, 0, "weapons/gl/icon", vec4_white );
-	for( int i = 0; i < 500; i++ ) {
-		AddDecal( Vec3( i * 30, i * 20, i * 15 - 500 ), Normalize( Vec3( 1, 0, 1 ) ), 32, 0, "weapons/gl/icon", vec4_white );
-	}
+	// for( int i = 0; i < 500; i++ ) {
+	// 	AddDecal( Vec3( i * 30, i * 20, i * 15 - 500 ), Normalize( Vec3( 1, 0, 1 ) ), 32, 0, "weapons/gl/icon", vec4_white );
+	// }
 
 	CG_InitChat();
 
