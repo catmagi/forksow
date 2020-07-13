@@ -79,7 +79,8 @@ struct GPUDecalTile {
  * https://pdfs.semanticscholar.org/9e5f/117618c96175ce683e9b708bacdfb8252e38.pdf
  */
 static MinMax3 ScreenSpaceBoundsForAxis( Vec2 axis, Vec3 view_space_origin, float radius ) {
-	bool fully_infront_of_near_plane = view_space_origin.z + radius < -frame_static.near_plane;
+	float z_near = -frame_static.near_plane;
+	bool fully_infront_of_near_plane = view_space_origin.z + radius < z_near;
 
 	Vec2 C = Vec2( Dot( Vec3( axis, 0.0f ), view_space_origin ), view_space_origin.z );
 
@@ -101,16 +102,16 @@ static MinMax3 ScreenSpaceBoundsForAxis( Vec2 axis, Vec3 view_space_origin, floa
 	}
 
 	if( !fully_infront_of_near_plane ) {
-		float chord_half_length = sqrtf( radius * radius - Square( frame_static.near_plane + C.y ) );
+		float chord_half_length = sqrtf( radius * radius - Square( z_near - C.y ) );
 
-		if( !camera_outside_sphere || max.y > -frame_static.near_plane ) {
+		if( !camera_outside_sphere || max.y > z_near ) {
 			max.x = C.x + chord_half_length;
-			max.y = -frame_static.near_plane;
+			max.y = z_near;
 		}
 
-		if( !camera_outside_sphere || min.y > -frame_static.near_plane ) {
+		if( !camera_outside_sphere || min.y > z_near ) {
 			min.x = C.x - chord_half_length;
-			min.y = -frame_static.near_plane;
+			min.y = z_near;
 		}
 	}
 
