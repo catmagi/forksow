@@ -144,8 +144,6 @@ static MinMax2 SphereScreenSpaceBounds( Vec3 origin, float radius ) {
 void UploadDecalBuffers() {
 	ZoneScoped;
 
-	decals[ 1 ].origin.y = 770 + sinf( 0.001f * Sys_Milliseconds() ) * 64;
-
 	u32 rows = ( frame_static.viewport_height + TILE_SIZE - 1 ) / TILE_SIZE;
 	u32 cols = ( frame_static.viewport_width + TILE_SIZE - 1 ) / TILE_SIZE;
 
@@ -163,11 +161,17 @@ void UploadDecalBuffers() {
 	memset( tiles.ptr, 0, tiles.num_bytes() );
 	defer { FREE( sys_allocator, tiles.ptr ); };
 
+	Vec3 forward = -frame_static.V.row2().xyz();
+
 	for( u32 i = 0; i < num_decals; i++ ) {
 		MinMax2 bounds = SphereScreenSpaceBounds( decals[ i ].origin, decals[ i ].radius );
 		bounds.mins.y = -bounds.mins.y;
 		bounds.maxs.y = -bounds.maxs.y;
 		Swap2( &bounds.mins.y, &bounds.maxs.y );
+
+		if( bounds.maxs.x <= -1.0f || bounds.maxs.y <= -1.0f || bounds.mins.x >= 1.0f || bounds.mins.y >= 1.0f ) {
+			continue;
+		}
 
 		Vec2 mins = ( bounds.mins + 1.0f ) * 0.5f * frame_static.viewport;
 		mins = Clamp( Vec2( 0.0f ), mins, frame_static.viewport - 1.0f ) / float( TILE_SIZE );
@@ -186,18 +190,18 @@ void UploadDecalBuffers() {
 		}
 
 		// draw debug sphere
-		const Model * sphere = FindModel( "models/sphere" );
-		PipelineState pipeline;
-		pipeline.pass = frame_static.nonworld_opaque_pass;
-		pipeline.shader = &shaders.standard;
-		pipeline.depth_func = DepthFunc_Disabled;
-		pipeline.wireframe = true;
-		pipeline.set_texture( "u_BaseTexture", cls.whiteTexture->texture );
-		pipeline.set_uniform( "u_View", frame_static.view_uniforms );
-		pipeline.set_uniform( "u_Material", frame_static.identity_material_uniforms );
-		pipeline.set_uniform( "u_Model", UploadModelUniforms( Mat4Translation( decals[ i ].origin ) * Mat4Scale( decals[ i ].radius ) * sphere->transform ) );
-
-		DrawModelPrimitive( sphere, &sphere->primitives[ 0 ], pipeline );
+		// const Model * sphere = FindModel( "models/sphere" );
+		// PipelineState pipeline;
+		// pipeline.pass = frame_static.nonworld_opaque_pass;
+		// pipeline.shader = &shaders.standard;
+		// pipeline.depth_func = DepthFunc_Disabled;
+		// pipeline.wireframe = true;
+		// pipeline.set_texture( "u_BaseTexture", cls.whiteTexture->texture );
+		// pipeline.set_uniform( "u_View", frame_static.view_uniforms );
+		// pipeline.set_uniform( "u_Material", frame_static.identity_material_uniforms );
+		// pipeline.set_uniform( "u_Model", UploadModelUniforms( Mat4Translation( decals[ i ].origin ) * Mat4Scale( decals[ i ].radius ) * sphere->transform ) );
+                //
+		// DrawModelPrimitive( sphere, &sphere->primitives[ 0 ], pipeline );
 	}
 
 	// pack tile buffer
@@ -218,15 +222,15 @@ void UploadDecalBuffers() {
 				num_indices++;
 			}
 
-			Vec2 tl = Vec2( x, y ) * Vec2( TILE_SIZE );
-			Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( TILE_SIZE );
-			Vec2 dims = br - tl;
-
-			Vec4 color = vec4_white;
-			if( tile->num_decals == 1 ) color = vec4_green;
-			if( tile->num_decals == 2 ) color = vec4_red;
-			color.w = ( ( x + y ) % 2 == 0 ) ? 0.4f : 0.25f;
-			Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
+			// Vec2 tl = Vec2( x, y ) * Vec2( TILE_SIZE );
+			// Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( TILE_SIZE );
+			// Vec2 dims = br - tl;
+                        //
+			// Vec4 color = vec4_white;
+			// if( tile->num_decals == 1 ) color = vec4_green;
+			// if( tile->num_decals == 2 ) color = vec4_red;
+			// color.w = ( ( x + y ) % 2 == 0 ) ? 0.4f : 0.25f;
+			// Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
 		}
 	}
 
@@ -236,6 +240,8 @@ void UploadDecalBuffers() {
 		WriteTextureBuffer( decal_index_buffer, indices, num_indices * sizeof( indices[ 0 ] ) );
 		WriteTextureBuffer( decal_tile_buffer, gpu_tiles.ptr, gpu_tiles.num_bytes() );
 	}
+
+	num_decals = 0;
 }
 
 void AddDecalsToPipeline( PipelineState * pipeline ) {

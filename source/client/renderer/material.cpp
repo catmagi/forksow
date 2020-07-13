@@ -44,7 +44,7 @@ constexpr u32 MAX_TEXTURES = 4096;
 constexpr u32 MAX_MATERIALS = 4096;
 
 constexpr u32 MAX_DECALS = 128;
-constexpr int DECAL_ATLAS_SIZE = 2048;
+constexpr int DECAL_ATLAS_SIZE = 4096;
 
 static Texture textures[ MAX_TEXTURES ];
 static u32 num_textures;
@@ -150,6 +150,7 @@ static void Shader_Discard( Material * material, const char * name, const char *
 }
 
 static void Shader_Decal( Material * material, const char * name, const char ** ptr ) {
+	Com_Printf( "is a decal\n", name );
 	material->decal = true;
 }
 
@@ -556,6 +557,8 @@ static void LoadMaterialFile( const char * path ) {
 		const char * material_name = COM_ParseExt( &ptr, true );
 		if( strlen( material_name ) == 0 )
 			break;
+
+	Com_Printf( "parsing material %s\n", material_name );
 
 		u64 hash = HashMaterialName( material_name );
 		COM_ParseExt( &ptr, true ); // skip opening brace
