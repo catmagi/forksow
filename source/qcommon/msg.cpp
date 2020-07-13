@@ -177,7 +177,6 @@ static void Delta( DeltaBuffer * buf, u16 & x, u16 baseline ) { DeltaFundamental
 static void Delta( DeltaBuffer * buf, u32 & x, u32 baseline ) { DeltaFundamental( buf, x, baseline ); }
 static void Delta( DeltaBuffer * buf, u64 & x, u64 baseline ) { DeltaFundamental( buf, x, baseline ); }
 static void Delta( DeltaBuffer * buf, float & x, float baseline ) { DeltaFundamental( buf, x, baseline ); }
-static void Delta( DeltaBuffer * buf, double & x, double baseline ) { DeltaFundamental( buf, x, baseline ); }
 
 static void Delta( DeltaBuffer * buf, bool & b, bool baseline ) {
 	if( buf->serializing ) {
