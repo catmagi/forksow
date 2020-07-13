@@ -617,7 +617,7 @@ static void PackDecalAtlas() {
 			continue;
 
 		if( materials[ i ].texture->format != TextureFormat_RGBA_U8_sRGB ) {
-			Com_Printf( "Decals must be RGBA" );
+			Com_Printf( S_COLOR_YELLOW "Decals must be RGBA\n" );
 			continue;
 		}
 

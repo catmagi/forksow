@@ -24,7 +24,13 @@ constexpr float PI = 3.14159265358979323846f;
 #define RAD2DEG( a ) ( ( ( a ) * 180.0f ) / PI )
 
 template< typename T >
-T Abs( const T & x ) { return x >= 0 ? x : -x; }
+T Abs( const T & x ) {
+	return x >= 0 ? x : -x;
+}
+
+inline float Square( float x ) {
+	return x * x;
+}
 
 // some stubs to catch accidental double usage
 void sinf( double x );

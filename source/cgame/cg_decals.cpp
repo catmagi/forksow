@@ -49,7 +49,7 @@ void AddDecal( Vec3 origin, Vec3 normal, float radius, float angle, StringHash n
 	Decal * decal = &decals[ num_decals ];
 
 	if( !TryFindDecal( name, &decal->uvwh ) ) {
-		Com_GGPrint( "Material {} should have decal key", name );
+		Com_GGPrint( S_COLOR_YELLOW "Material {} should have decal key", name );
 		return;
 	}
 
@@ -71,10 +71,6 @@ struct GPUDecalTile {
 	u32 first_decal;
 	u32 num_decals;
 };
-
-static float Square( float x ) {
-	return x * x;
-}
 
 /*
  * implementation of "2D Polyhedral Bounds of a Clipped, Perspective-Projected
@@ -107,12 +103,12 @@ static MinMax3 ScreenSpaceBoundsForAxis( Vec2 axis, Vec3 view_space_origin, floa
 	if( !fully_infront_of_near_plane ) {
 		float chord_half_length = sqrtf( radius * radius - Square( frame_static.near_plane + C.y ) );
 
-		if( !camera_outside_sphere || max.y > frame_static.near_plane ) {
+		if( !camera_outside_sphere || max.y > -frame_static.near_plane ) {
 			max.x = C.x + chord_half_length;
 			max.y = -frame_static.near_plane;
 		}
 
-		if( !camera_outside_sphere || min.y > frame_static.near_plane ) {
+		if( !camera_outside_sphere || min.y > -frame_static.near_plane ) {
 			min.x = C.x - chord_half_length;
 			min.y = -frame_static.near_plane;
 		}
@@ -126,11 +122,16 @@ static MinMax3 ScreenSpaceBoundsForAxis( Vec2 axis, Vec3 view_space_origin, floa
 
 static MinMax2 SphereScreenSpaceBounds( Vec3 origin, float radius ) {
 	Vec3 view_space_origin = ( frame_static.V * Vec4( origin, 1.0f ) ).xyz();
-	Mat4 P = frame_static.P;
+
+	bool fully_behind_near_plane = view_space_origin.z - radius >= -frame_static.near_plane;
+	if( fully_behind_near_plane ) {
+		return MinMax2( Vec2( -1.0f ), Vec2( -1.0f ) );
+	}
 
 	MinMax3 x_bounds = ScreenSpaceBoundsForAxis( Vec2( 1.0f, 0.0f ), view_space_origin, radius );
 	MinMax3 y_bounds = ScreenSpaceBoundsForAxis( Vec2( 0.0f, 1.0f ), view_space_origin, radius );
 
+	Mat4 P = frame_static.P;
 	float min_x = Dot( x_bounds.mins, P.row0().xyz() ) / Dot( x_bounds.mins, P.row3().xyz() );
 	float max_x = Dot( x_bounds.maxs, P.row0().xyz() ) / Dot( x_bounds.maxs, P.row3().xyz() );
 	float min_y = Dot( y_bounds.mins, P.row1().xyz() ) / Dot( y_bounds.mins, P.row3().xyz() );
