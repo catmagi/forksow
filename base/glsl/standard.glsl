@@ -72,13 +72,14 @@ layout( std140 ) uniform u_Decal {
 uniform samplerBuffer u_DecalData;
 uniform isamplerBuffer u_DecalIndices;
 uniform isamplerBuffer u_DecalTiles;
-uniform sampler2D u_DecalAtlas;
+uniform sampler2DArray u_DecalAtlases;
 #endif
 
 float ProjectedScale( vec3 p, vec3 o, vec3 d ) {
 	return dot( p - o, d ) / dot( d, d );
 }
 
+// must match the CPU OrthonormalBasis
 void OrthonormalBasis( vec3 v, out vec3 tangent, out vec3 bitangent ) {
 	float s = step( 0.0, v.z ) * 2.0 - 1.0;
 	float a = -1.0 / ( s + v.z );
@@ -128,6 +129,7 @@ void main() {
 			vec4 normal_angle = texelFetch( u_DecalData, idx * 4 + 1 );
 			vec4 decal_color = texelFetch( u_DecalData, idx * 4 + 2 );
 			vec4 uvwh = texelFetch( u_DecalData, idx * 4 + 3 );
+			float layer = floor( uvwh.x );
 
 			vec3 basis_u;
 			vec3 basis_v;
@@ -136,10 +138,17 @@ void main() {
 			basis_v *= origin_radius.w * -2.0;
 			vec3 bottom_left = origin_radius.xyz - ( basis_u + basis_v ) * 0.5;
 
+			float c = cos( normal_angle.w );
+			float s = sin( normal_angle.w );
+			mat2 rotation = mat2( c, s, -s, c );
 			vec2 uv = vec2( ProjectedScale( v_Position, bottom_left, basis_u ), ProjectedScale( v_Position, bottom_left, basis_v ) );
+
+			uv -= 0.5;
+			uv = rotation * uv;
+			uv += 0.5;
 			uv = uvwh.xy + uvwh.zw * uv;
 
-			vec4 sample = texture( u_DecalAtlas, uv );
+			vec4 sample = texture( u_DecalAtlases, vec3( uv, layer ) );
 			float inv_cos_45_degrees = 1.41421356237;
 			float decal_alpha = sample.a * decal_color.a * max( 0.0, dot( v_Normal, normal_angle.xyz ) * inv_cos_45_degrees );
 			diffuse.rgb = mix( diffuse.rgb, sample.rgb * decal_color.rgb, decal_alpha );

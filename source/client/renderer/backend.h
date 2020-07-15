@@ -84,6 +84,10 @@ struct Texture {
 	const void * data;
 };
 
+struct TextureArray {
+	u32 texture;
+};
+
 struct Framebuffer {
 	u32 fbo;
 	Texture albedo_texture;
@@ -103,6 +107,11 @@ struct PipelineState {
 		const Texture * texture;
 	};
 
+	struct TextureArrayBinding {
+		u64 name_hash;
+		TextureArray ta;
+	};
+
 	struct TextureBufferBinding {
 		u64 name_hash;
 		TextureBuffer tb;
@@ -115,6 +124,7 @@ struct PipelineState {
 	UniformBinding uniforms[ ARRAY_COUNT( &Shader::uniforms ) ];
 	TextureBinding textures[ ARRAY_COUNT( &Shader::textures ) ];
 	TextureBufferBinding texture_buffers[ ARRAY_COUNT( &Shader::texture_buffers ) ];
+	TextureArrayBinding texture_array = { };
 	size_t num_uniforms = 0;
 	size_t num_textures = 0;
 	size_t num_texture_buffers = 0;
@@ -166,6 +176,11 @@ struct PipelineState {
 		texture_buffers[ num_texture_buffers ].name_hash = name.hash;
 		texture_buffers[ num_texture_buffers ].tb = tb;
 		num_texture_buffers++;
+	}
+
+	void set_texture_array( StringHash name, TextureArray ta ) {
+		texture_array.name_hash = name.hash;
+		texture_array.ta = ta;
 	}
 };
 
@@ -229,11 +244,12 @@ struct TextureConfig {
 	Vec4 border_color;
 };
 
-struct SamplerConfig {
-	TextureWrap wrap = TextureWrap_Repeat;
-	TextureFilter filter = TextureFilter_Linear;
-	Vec4 border_color;
-	// swizzle
+struct TextureArrayConfig {
+	u32 width = 0;
+	u32 height = 0;
+	u32 layers = 0;
+
+	const void * data = NULL;
 };
 
 struct RenderPass {
@@ -306,8 +322,10 @@ void WriteTextureBuffer( TextureBuffer tb, const void * data, u32 size );
 void DeleteTextureBuffer( TextureBuffer tb );
 
 Texture NewTexture( const TextureConfig & config );
-void UpdateTexture( Texture texture, int x, int y, int w, int h, const void * data );
 void DeleteTexture( Texture texture );
+
+TextureArray NewAtlasTextureArray( const TextureArrayConfig & config );
+void DeleteTextureArray( TextureArray ta );
 
 Framebuffer NewFramebuffer( const FramebufferConfig & config );
 void DeleteFramebuffer( Framebuffer fb );
