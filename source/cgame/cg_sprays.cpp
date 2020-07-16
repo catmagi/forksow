@@ -15,9 +15,11 @@ struct Spray {
 constexpr static s64 SPRAY_DURATION = 60000;
 
 static Spray sprays[ 1024 ];
-static u32 num_sprays;
+static size_t sprays_head;
+static size_t num_sprays;
 
 void InitSprays() {
+	sprays_head = 0;
 	num_sprays = 0;
 }
 
@@ -32,9 +34,6 @@ static void OrthonormalBasis( Vec3 v, Vec3 * tangent, Vec3 * bitangent ) {
 }
 
 void AddSpray( Vec3 origin, Vec3 normal, Vec3 up, StringHash material ) {
-	if( num_sprays == ARRAY_COUNT( sprays ) )
-		return;
-
 	Spray spray;
 	spray.origin = origin;
 	spray.normal = normal;
@@ -51,21 +50,26 @@ void AddSpray( Vec3 origin, Vec3 normal, Vec3 up, StringHash material ) {
 	spray.angle = -atan2( Dot( decal_up, tangent ), Dot( decal_up, bitangent ) );
 	spray.angle += random_float11( &cls.rng ) * Radians( 10.0f );
 
-	sprays[ num_sprays ] = spray;
-	num_sprays++;
+	sprays[ ( sprays_head + num_sprays ) % ARRAY_COUNT( sprays ) ] = spray;
+
+	if( num_sprays == ARRAY_COUNT( sprays ) ) {
+		sprays_head++;
+	}
+	else {
+		num_sprays++;
+	}
 }
 
 void DrawSprays() {
-	for( u32 i = 0; i < num_sprays; i++ ) {
-		Spray * spray = &sprays[ i ];
+	while( num_sprays > 0 ) {
+		if( sprays[ sprays_head % ARRAY_COUNT( sprays ) ].spawn_time + SPRAY_DURATION >= cls.gametime )
+			break;
+		sprays_head++;
+		num_sprays--;
+	}
 
-		if( spray->spawn_time + SPRAY_DURATION < cls.gametime ) {
-			num_sprays--;
-			Swap2( spray, &sprays[ num_sprays ] );
-			i--;
-			continue;
-		}
-
+	for( size_t i = 0; i < num_sprays; i++ ) {
+		const Spray * spray = &sprays[ ( sprays_head + i ) % ARRAY_COUNT( sprays ) ];
 		AddDecal( spray->origin, spray->normal, spray->radius, spray->angle, spray->material, vec4_white );
 	}
 }
