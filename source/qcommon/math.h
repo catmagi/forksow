@@ -20,8 +20,8 @@ extern "C" float ceilf( float );
 
 constexpr float PI = 3.14159265358979323846f;
 
-inline constexpr float DEG2RAD( float d ) { return d * PI / 180.0f; }
-inline constexpr float RAD2DEG( float r ) { return r * 180.0f / PI; }
+inline constexpr float Radians( float d ) { return d * PI / 180.0f; }
+inline constexpr float Degrees( float r ) { return r * 180.0f / PI; }
 
 template< typename T >
 T Abs( const T & x ) {
