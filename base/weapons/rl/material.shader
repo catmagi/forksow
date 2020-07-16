@@ -1,12 +1,3 @@
-weapons/rl/icon
-{
-	{
-		map weapons/rl/icon
-	}
-
-	decal
-}
-
 models/weapons/rlauncher/rlauncher_fx
 {
 	cull disable

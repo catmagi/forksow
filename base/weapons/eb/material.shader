@@ -1,12 +1,3 @@
-weapons/eb/icon
-{
-	{
-		map weapons/eb/icon
-	}
-
-	decal
-}
-
 models/weapons/electrobolt/electrobolt
 {
 	{
