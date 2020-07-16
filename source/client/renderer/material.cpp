@@ -651,13 +651,13 @@ static void PackDecalAtlas() {
 			decal_uvwhs[ decal_idx ].w = decal->texture->height / float( DECAL_ATLAS_SIZE );
 		}
 
-		if( none_packed ) {
-			Com_Error( ERR_DROP, "Can't pack decals" );
-		}
-
 		num_atlases++;
 		if( all_packed )
 			break;
+
+		if( none_packed ) {
+			Com_Error( ERR_DROP, "Can't pack decals" );
+		}
 
 		// repack rects array
 		for( u32 i = 0; i < num_unpacked_decals; i++ ) {
