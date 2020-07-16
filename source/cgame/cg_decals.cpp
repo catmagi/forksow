@@ -161,8 +161,6 @@ void UploadDecalBuffers() {
 	memset( tiles.ptr, 0, tiles.num_bytes() );
 	defer { FREE( sys_allocator, tiles.ptr ); };
 
-	Vec3 forward = -frame_static.V.row2().xyz();
-
 	for( u32 i = 0; i < num_decals; i++ ) {
 		MinMax2 bounds = SphereScreenSpaceBounds( decals[ i ].origin, decals[ i ].radius );
 		bounds.mins.y = -bounds.mins.y;
@@ -188,20 +186,6 @@ void UploadDecalBuffers() {
 				}
 			}
 		}
-
-		// draw debug sphere
-		// const Model * sphere = FindModel( "models/sphere" );
-		// PipelineState pipeline;
-		// pipeline.pass = frame_static.nonworld_opaque_pass;
-		// pipeline.shader = &shaders.standard;
-		// pipeline.depth_func = DepthFunc_Disabled;
-		// pipeline.wireframe = true;
-		// pipeline.set_texture( "u_BaseTexture", cls.whiteTexture->texture );
-		// pipeline.set_uniform( "u_View", frame_static.view_uniforms );
-		// pipeline.set_uniform( "u_Material", frame_static.identity_material_uniforms );
-		// pipeline.set_uniform( "u_Model", UploadModelUniforms( Mat4Translation( decals[ i ].origin ) * Mat4Scale( decals[ i ].radius ) * sphere->transform ) );
-                //
-		// DrawModelPrimitive( sphere, &sphere->primitives[ 0 ], pipeline );
 	}
 
 	// pack tile buffer
@@ -221,16 +205,6 @@ void UploadDecalBuffers() {
 				indices[ num_indices ] = tile->indices[ i ];
 				num_indices++;
 			}
-
-			// Vec2 tl = Vec2( x, y ) * Vec2( TILE_SIZE );
-			// Vec2 br = Vec2( x + 1, y + 1 ) * Vec2( TILE_SIZE );
-			// Vec2 dims = br - tl;
-                        //
-			// Vec4 color = vec4_white;
-			// if( tile->num_decals == 1 ) color = vec4_green;
-			// if( tile->num_decals == 2 ) color = vec4_red;
-			// color.w = ( ( x + y ) % 2 == 0 ) ? 0.4f : 0.25f;
-			// Draw2DBox( tl.x, tl.y, dims.x, dims.y, cgs.white_material, color );
 		}
 	}
 

@@ -21,13 +21,9 @@ void InitSprays() {
 	num_sprays = 0;
 }
 
-static float step( float e, float x ) {
-	return x < e ? 0.0 : 1.0;
-}
-
 // must match the GLSL OrthonormalBasis
 static void OrthonormalBasis( Vec3 v, Vec3 * tangent, Vec3 * bitangent ) {
-	float s = step( 0.0f, v.z ) * 2.0f - 1.0f;
+	float s = copysignf( 1.0f, v.z );
 	float a = -1.0f / ( s + v.z );
 	float b = v.x * v.y * a;
 
@@ -60,7 +56,6 @@ void AddSpray( Vec3 origin, Vec3 normal, Vec3 up, StringHash material ) {
 }
 
 void DrawSprays() {
-	float angle = PositiveMod( cls.monotonicTime * 0.001f, PI * 2.0f );
 	for( u32 i = 0; i < num_sprays; i++ ) {
 		Spray * spray = &sprays[ i ];
 
